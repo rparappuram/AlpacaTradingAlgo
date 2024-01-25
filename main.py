@@ -1,4 +1,8 @@
+import os
 import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 from src.trading_classes import *
 from src.slack_app_notification import *
@@ -8,7 +12,7 @@ from slack.errors import SlackApiError
 
 def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_crypto=30):
     """
-    Description: Uses your Alpaca API credentials (including whether you're paper trading or live trading based on BASE_URL) and
+    Description: Uses your Alpaca API credentials (including whether you're paper trading or live trading) and
     sells overbought assets in portfolio then buys oversold assets in the market per YahooFinance! opportunities.
 
     Arguments:
@@ -20,15 +24,10 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
     config = configparser.ConfigParser()
     config.read("creds.cfg")
 
-    os.environ["KEY_ID"] = config["alpaca"]["KEY_ID"]
-    os.environ["SECRET_KEY"] = config["alpaca"]["SECRET_KEY"]
-    os.environ["client"] = config["slack"]["client"]
-    BASE_URL = config["alpaca"]["BASE_URL"]
-
-    api = tradeapi.REST(
-        key_id=os.environ["KEY_ID"],
-        secret_key=os.environ["SECRET_KEY"],
-        base_url=BASE_URL,
+    api = TradingClient(
+        api_key=os.getenv("API_KEY"),
+        secret_key=os.getenv("SECRET_KEY"),
+        paper=True,
     )
 
     ##############################
@@ -76,7 +75,7 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
         print("• Sending message")
 
         # Authenticate to the Slack API via the generated token
-        client = WebClient(os.environ["client"])
+        client = WebClient(os.getenv("client"))
 
         message = (
             f"{part_of_day()}\n\n"

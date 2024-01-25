@@ -8,3 +8,4 @@ openpyxl>=3.0.6
 slackclient>=2.9.4
 alpaca-py
 pandas_market_calendars
+python-dotenv

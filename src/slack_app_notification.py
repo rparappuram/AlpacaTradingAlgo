@@ -1,6 +1,6 @@
 import os
 import configparser
-import alpaca_trade_api as tradeapi
+from alpaca.trading.client import TradingClient
 
 from datetime import datetime
 
@@ -8,13 +8,8 @@ from datetime import datetime
 config = configparser.ConfigParser()
 config.read("creds.cfg")
 
-os.environ["KEY_ID"] = config["alpaca"]["KEY_ID"]
-os.environ["SECRET_KEY"] = config["alpaca"]["SECRET_KEY"]
-
-BASE_URL = "https://paper-api.alpaca.markets"
-
-api = tradeapi.REST(
-    key_id=os.environ["KEY_ID"], secret_key=os.environ["SECRET_KEY"], base_url=BASE_URL
+api = TradingClient(
+    api_key=os.getenv("API_KEY"), secret_key=os.getenv("SECRET_KEY"), paper=True
 )
 
 

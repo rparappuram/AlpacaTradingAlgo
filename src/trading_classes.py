@@ -1,13 +1,13 @@
 import os
 import pandas as pd
 import yfinance as yf
-import alpaca_py as tradeapi
+from alpaca.trading.client import TradingClient
 import configparser
 import pytz
 import locale
 import pandas_market_calendars as mcal
 
-from alpaca_py.rest import APIError
+from alpaca.common.exceptions import APIError
 from ta.volatility import BollingerBands
 from ta.momentum import RSIIndicator
 from ta.trend import sma_indicator
@@ -196,10 +196,10 @@ class Alpaca:
         config = configparser.ConfigParser()
         config.read('creds.cfg')
 
-        self.api = tradeapi.REST(
-            key_id=os.environ['KEY_ID'],
-            secret_key=os.environ['SECRET_KEY'],
-            base_url=config['alpaca']['BASE_URL']
+        self.api = TradingClient(
+            api_key=os.getenv('API_KEY'),
+            secret_key=os.getenv('SECRET_KEY'),
+            paper=True
         )
 
     def get_current_positions(self):
@@ -211,12 +211,12 @@ class Alpaca:
         """
 
         investments = pd.DataFrame({
-            'asset': [x.symbol for x in self.api.list_positions()],
-            'current_price': [x.current_price for x in self.api.list_positions()],
-            'qty': [x.qty for x in self.api.list_positions()],
-            'market_value': [x.market_value for x in self.api.list_positions()],
-            'profit_dol': [x.unrealized_pl for x in self.api.list_positions()],
-            'profit_pct': [x.unrealized_plpc for x in self.api.list_positions()]
+            'asset': [x.symbol for x in self.api.get_all_positions()],
+            'current_price': [x.current_price for x in self.api.get_all_positions()],
+            'qty': [x.qty for x in self.api.get_all_positions()],
+            'market_value': [x.market_value for x in self.api.get_all_positions()],
+            'profit_dol': [x.unrealized_pl for x in self.api.get_all_positions()],
+            'profit_pct': [x.unrealized_plpc for x in self.api.get_all_positions()]
         })
 
         cash = pd.DataFrame({
