@@ -39,7 +39,7 @@ def slack_app_notification(days_hist=1):
     # Parse the trade information
     for trade in trades:
         symbol = trade.symbol
-        amount = round(float(trade.qty) * float(trade.price), 2)
+        amount = round(float(trade.qty) * float(trade.filled_avg_price), 2) if trade.qty else round(float(trade.notional), 2)
         if trade.side == "sell":
             total_sales += amount
             if "USD" in symbol:

@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import yfinance as yf
 from alpaca.trading.client import TradingClient
+from alpaca.trading.requests import OrderRequest
 import configparser
 import pytz
 import locale
@@ -324,10 +325,12 @@ class Alpaca:
                     print("• selling " + str(symbol))
                     qty = df_current_positions[df_current_positions['asset'] == symbol]['qty'].values[0]
                     self.api.submit_order(
-                        symbol=symbol,
-                        time_in_force='gtc',
-                        qty=qty,
-                        side="sell"
+                        order_data=OrderRequest(
+                            symbol=symbol,
+                            time_in_force='gtc',
+                            qty=qty,
+                            side="sell"
+                        )
                     )
                     executed_sales.append([symbol, round(qty)])
             except Exception as e:
@@ -365,11 +368,13 @@ class Alpaca:
 
                 try:
                     self.api.submit_order(
-                        symbol=row['asset'],
-                        time_in_force="day",
-                        type="market",
-                        notional=amount_to_sell,
-                        side="sell"
+                        order_data=OrderRequest(
+                            symbol=row['asset'],
+                            time_in_force="day",
+                            type="market",
+                            notional=amount_to_sell,
+                            side="sell"
+                        )
                     )
                     executed_sales.append([row['asset'], amount_to_sell])
                 except APIError:
@@ -415,26 +420,33 @@ class Alpaca:
             try:
                 if len(symbol) >= 6:
                     self.api.submit_order(
-                        symbol=symbol,
-                        time_in_force='gtc',
-                        notional=available_cash / len(eligible_symbols),
-                        side="buy"
+                        order_data=OrderRequest(
+                            symbol=symbol,
+                            time_in_force='day',
+                            notional=round(available_cash / len(eligible_symbols)),
+                            side="buy",
+                            type="market"
+                        )
                     )
                 else:
                     self.api.submit_order(
-                        symbol=symbol,
-                        type='market',
-                        notional=available_cash / len(eligible_symbols),
-                        side="buy"
+                        order_data=OrderRequest(
+                            symbol=symbol,
+                            type='market',
+                            notional=round(available_cash / len(eligible_symbols)),
+                            side="buy",
+                            time_in_force='day'
+                        )
                     )
 
             except Exception as e:
+                print(e, end='\n\n')
                 continue
 
         if len(eligible_symbols) == 0:
             self.bought_message = "• executed no buy orders based on the buy criteria"
         else:
-            self.bought_message = f"• executed buy orders for {''.join([symbol + ', ' if i < len(eligible_symbols) - 1 else 'and ' + symbol for i, symbol in enumerate(eligible_symbols)])}based on the buy criteria"
+            self.bought_message = f"• executed buy orders for {''.join([symbol + ', ' if i < len(eligible_symbols) - 1 else 'and ' + symbol for i, symbol in enumerate(eligible_symbols)])} based on the buy criteria"
 
         print(self.bought_message)
 
