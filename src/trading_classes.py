@@ -416,6 +416,7 @@ class Alpaca:
             eligible_symbols = [symbol for symbol in tickers if "-USD" in symbol]
 
         # Submit buy orders for eligible symbols
+        ordered = []
         for symbol in eligible_symbols:
             try:
                 if len(symbol) >= 6:
@@ -438,6 +439,7 @@ class Alpaca:
                             time_in_force='day'
                         )
                     )
+                ordered.append(symbol)
 
             except Exception as e:
                 print(e, end='\n\n')
@@ -445,6 +447,8 @@ class Alpaca:
 
         if len(eligible_symbols) == 0:
             self.bought_message = "• executed no buy orders based on the buy criteria"
+        elif len(ordered) != len(eligible_symbols):
+            self.bought_message = f"• executed buy orders for {''.join([symbol + ', ' if i < len(ordered) - 1 else 'and ' + symbol for i, symbol in enumerate(ordered)])} based on the buy criteria"
         else:
             self.bought_message = f"• executed buy orders for {''.join([symbol + ', ' if i < len(eligible_symbols) - 1 else 'and ' + symbol for i, symbol in enumerate(eligible_symbols)])} based on the buy criteria"
 

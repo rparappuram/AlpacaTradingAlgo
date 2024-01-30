@@ -31,9 +31,9 @@ def slack_app_notification(days_hist=1):
     stock_sales = {}
     stock_purchases = {}
 
-    # Get the trade history for the last 24 hours
+    # Get the trade history for the last hour
     trades = api.get_orders(
-        filter=GetOrdersRequest(status="closed", after=datetime.now() - timedelta(days=1), direction="desc")
+        filter=GetOrdersRequest(status="closed", after=datetime.now() - timedelta(hours=1), direction="desc")
     )
 
     # Parse the trade information
@@ -111,6 +111,12 @@ def slack_app_notification(days_hist=1):
         if not crypto_purchases:
             results.append(total_purchases_str)
         results += stock_purchases_formatted
+
+    # Add the available cash and portfolio value
+    results.append("")
+    results.append(f"*`Day Trade Count: {api.get_account().daytrade_count}`*")
+    results.append(f"*`Available Cash: ${api.get_account().cash}`*")
+    results.append(f"*`Portfolio Value: ${api.get_account().portfolio_value}`*")
 
     # Combine the results into a formatted string
     formatted_results = "\n".join(results)
