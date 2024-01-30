@@ -72,7 +72,10 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
     print(f"• Current time: {current_time.strftime('%Y-%m-%d %H:%M:%S %p')}")
     hour = current_time.hour
 
-    if st_hr_for_message <= hour < end_hr_for_message:
+    # Get orders from the past 24 hours
+    orders = slack_app_notification(days_hist=days_hist)
+
+    if orders != "":
         print("• Sending message")
 
         # Authenticate to the Slack API via the generated token
@@ -81,7 +84,7 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
         message = (
             f"{part_of_day()}\n\n"
             "The trading bot has made the following trades over the past 24hrs:\n\n"
-            f"{slack_app_notification(days_hist=days_hist)}\n\n"
+            f"{orders}\n\n"
             "Happy trading!\n"
             "June's Trading Bot 🤖"
         )

@@ -1,8 +1,9 @@
 import os
 import configparser
 from alpaca.trading.client import TradingClient
+from alpaca.trading.requests import GetOrdersRequest
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # These are paper trading config details
 config = configparser.ConfigParser()
@@ -30,17 +31,9 @@ def slack_app_notification(days_hist=1):
     stock_sales = {}
     stock_purchases = {}
 
-    # Get the current timestamp in seconds
-    current_time = int(datetime.now().timestamp())
-
-    # Calculate the start time for the trade history query (86.4k seconds = last 24hrs)
-    start_time = datetime.utcfromtimestamp(current_time - days_hist * 864000).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
-
     # Get the trade history for the last 24 hours
-    trades = api.get_activities(
-        activity_types="FILL", direction="desc", after=start_time
+    trades = api.get_orders(
+        filter=GetOrdersRequest(status="closed", after=datetime.now() - timedelta(days=1), direction="desc")
     )
 
     # Parse the trade information
