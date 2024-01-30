@@ -164,7 +164,18 @@ class TradingOpportunities:
             pass
 
         df_tech = [x for x in df_tech if not x.empty]
-        df_tech = pd.concat(df_tech)
+        if len(df_tech) > 0:
+            df_tech = pd.concat(df_tech)
+        else:
+            # empty df with columns to avoid errors
+            n_nums = [14, 30, 50, 200]
+            df_tech = pd.DataFrame(
+                columns=["Symbol"]
+                + ["ma" + str(n) for n in n_nums]
+                + ["rsi" + str(n) for n in n_nums]
+                + ["bbhi" + str(n) for n in n_nums]
+                + ["bblo" + str(n) for n in n_nums]
+            )
 
         # Define the buy criteria
         buy_criteria = (
