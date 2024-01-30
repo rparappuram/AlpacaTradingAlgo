@@ -405,7 +405,6 @@ class Alpaca:
 
         # Determine whether to trade all symbols or only those with "-USD" in their name
         market_open = self.is_market_open()
-        print("• market open: " + str(market_open))
         if market_open:
             eligible_symbols = tickers
         else:

@@ -99,7 +99,7 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
         except SlackApiError as e:
             print(f"Error sending message: {e}")
     else:
-        print("Not sending message since it's not between 6 AM and 9 AM in EST.")
+        print("Not sending message since no trades were made")
 
 
 if __name__ == "__main__":
