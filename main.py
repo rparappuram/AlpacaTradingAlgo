@@ -62,20 +62,21 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
     ### Slack notification
 
     def part_of_day():
-        current_time = datetime.now(pytz.timezone("CET"))
+        current_time = datetime.now(pytz.timezone('US/Eastern'))
         if current_time.hour < 12:
             return "️💰☕️ *Good morning* ☕️💰"
         else:
             return "💰🌅 *Good afternoon* 🌅💰"
 
-    current_time = datetime.now(pytz.timezone("CET"))
+    current_time = datetime.now(pytz.timezone('US/Eastern'))
+    print(f"• Current time: {current_time.strftime('%Y-%m-%d %H:%M:%S %p')}")
     hour = current_time.hour
 
     if st_hr_for_message <= hour < end_hr_for_message:
         print("• Sending message")
 
         # Authenticate to the Slack API via the generated token
-        client = WebClient(os.getenv("client"))
+        client = WebClient(os.getenv("SLACK_API"))
 
         message = (
             f"{part_of_day()}\n\n"
@@ -87,7 +88,7 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
 
         try:
             response = client.chat_postMessage(
-                channel="ENTER_CHANNEL_ID_HERE",
+                channel=os.getenv("CHANNEL_ID"),
                 text=message,
                 mrkdwn=True,  # Enable Markdown formatting
             )
@@ -95,7 +96,7 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
         except SlackApiError as e:
             print(f"Error sending message: {e}")
     else:
-        print("Not sending message since it's not between 6 AM and 9 AM in CET.")
+        print("Not sending message since it's not between 6 AM and 9 AM in EST.")
 
 
 if __name__ == "__main__":
