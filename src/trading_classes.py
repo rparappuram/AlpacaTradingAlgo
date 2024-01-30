@@ -266,18 +266,18 @@ class Alpaca:
 
     @staticmethod
     def is_market_open():
-        nyse = pytz.timezone('America/New_York')
+        nyse = pytz.timezone('US/Eastern')
         current_time = datetime.now(nyse)
 
         nyse_calendar = mcal.get_calendar('NYSE')
         market_schedule = nyse_calendar.schedule(start_date=current_time.date(), end_date=current_time.date())
 
         if not market_schedule.empty:
-            market_open = market_schedule.iloc[0]['market_open'].to_pydatetime().replace(tzinfo=None)
-            market_close = market_schedule.iloc[0]['market_close'].to_pydatetime().replace(tzinfo=None)
-            current_time_no_tz = current_time.replace(tzinfo=None)
+            nyse = pytz.timezone('US/Eastern')
+            market_open = market_schedule.iloc[0]['market_open'].to_pydatetime().astimezone(nyse)
+            market_close = market_schedule.iloc[0]['market_close'].to_pydatetime().astimezone(nyse)
 
-            if market_open <= current_time_no_tz <= market_close:
+            if market_open <= current_time <= market_close:
                 return True
 
         return False
@@ -404,12 +404,14 @@ class Alpaca:
         current_time = datetime.now(et_tz)
 
         # Determine whether to trade all symbols or only those with "-USD" in their name
-        if self.is_market_open():
+        market_open = self.is_market_open()
+        print("• market open: " + str(market_open))
+        if market_open:
             eligible_symbols = tickers
         else:
             eligible_symbols = [symbol for symbol in tickers if "-USD" in symbol]
 
-            # Submit buy orders for eligible symbols
+        # Submit buy orders for eligible symbols
         for symbol in eligible_symbols:
             try:
                 if len(symbol) >= 6:
