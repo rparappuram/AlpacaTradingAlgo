@@ -39,7 +39,11 @@ def slack_app_notification():
     # Parse the trade information
     for trade in trades:
         symbol = trade.symbol
-        amount = round(float(trade.qty) * float(trade.filled_avg_price), 2) if trade.qty else round(float(trade.notional), 2)
+        amount = (
+            round(float(trade.qty) * float(trade.filled_avg_price), 2)
+            if trade.qty
+            else round(float(trade.notional), 2)
+        )
         if trade.side == "sell":
             total_sales += amount
             if "USD" in symbol:
@@ -124,10 +128,11 @@ def slack_app_notification():
     # Return the formatted results
     return formatted_results
 
+
 def get_last_run_timestamp():
     # Check if the timestamp file exists
     if os.path.exists(TIMESTAMP_FILE):
-        with open(TIMESTAMP_FILE, 'r') as file:
+        with open(TIMESTAMP_FILE, "r") as file:
             timestamp_str = file.read().strip()
             # Parse the timestamp assuming it's in UTC
             return datetime.fromisoformat(timestamp_str)
@@ -135,18 +140,22 @@ def get_last_run_timestamp():
         # Default to one hour ago in UTC if the file doesn't exist
         return datetime.utcnow() - timedelta(hours=1)
 
+
 def save_current_timestamp():
     # Save the current UTC timestamp to the file
-    with open(TIMESTAMP_FILE, 'w') as file:
+    with open(TIMESTAMP_FILE, "w") as file:
         # Format the current UTC time as an ISO string
         file.write(datetime.utcnow().isoformat())
+
 
 def get_trade_history(api):
     last_run_timestamp = get_last_run_timestamp()
 
     # Retrieve trades since the last run, using the UTC timestamp
     trades = api.get_orders(
-        filter=GetOrdersRequest(status="closed", after=last_run_timestamp, direction="desc")
+        filter=GetOrdersRequest(
+            status="closed", after=last_run_timestamp, direction="desc"
+        )
     )
 
     # Update the timestamp file with the current UTC time

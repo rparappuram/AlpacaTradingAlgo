@@ -22,7 +22,7 @@ def main(n_stocks=30, n_crypto=30):
         • n_crypto: number of top traded/valued crypto assets from YahooFinance! to be considered for trades
     """
 
-    current_time = datetime.now(pytz.timezone('US/Eastern'))
+    current_time = datetime.now(pytz.timezone("US/Eastern"))
     print(f"Timestamp: {current_time.strftime('%Y-%m-%d %I:%M %p')}")
 
     api = TradingClient(
