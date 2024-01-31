@@ -206,12 +206,10 @@ class Alpaca:
         """
 
         config = configparser.ConfigParser()
-        config.read('creds.cfg')
+        config.read("creds.cfg")
 
         self.api = TradingClient(
-            api_key=os.getenv('API_KEY'),
-            secret_key=os.getenv('SECRET_KEY'),
-            paper=True
+            api_key=os.getenv("API_KEY"), secret_key=os.getenv("SECRET_KEY"), paper=True
         )
 
     def get_current_positions(self):
@@ -222,28 +220,35 @@ class Alpaca:
         • api: this is the instantiated session you'll need to kick-off define before doing any analysis.
         """
 
-        investments = pd.DataFrame({
-            'asset': [x.symbol for x in self.api.get_all_positions()],
-            'current_price': [x.current_price for x in self.api.get_all_positions()],
-            'qty': [x.qty for x in self.api.get_all_positions()],
-            'market_value': [x.market_value for x in self.api.get_all_positions()],
-            'profit_dol': [x.unrealized_pl for x in self.api.get_all_positions()],
-            'profit_pct': [x.unrealized_plpc for x in self.api.get_all_positions()]
-        })
+        investments = pd.DataFrame(
+            {
+                "asset": [x.symbol for x in self.api.get_all_positions()],
+                "current_price": [
+                    x.current_price for x in self.api.get_all_positions()
+                ],
+                "qty": [x.qty for x in self.api.get_all_positions()],
+                "market_value": [x.market_value for x in self.api.get_all_positions()],
+                "profit_dol": [x.unrealized_pl for x in self.api.get_all_positions()],
+                "profit_pct": [x.unrealized_plpc for x in self.api.get_all_positions()],
+            }
+        )
 
-        cash = pd.DataFrame({
-            'asset': 'Cash',
-            'current_price': self.api.get_account().cash,
-            'qty': self.api.get_account().cash,
-            'market_value': self.api.get_account().cash,
-            'profit_dol': 0,
-            'profit_pct': 0
-        }, index=[0])  # Need to set index=[0] since passing scalars in df
+        cash = pd.DataFrame(
+            {
+                "asset": "Cash",
+                "current_price": self.api.get_account().cash,
+                "qty": self.api.get_account().cash,
+                "market_value": self.api.get_account().cash,
+                "profit_dol": 0,
+                "profit_pct": 0,
+            },
+            index=[0],
+        )  # Need to set index=[0] since passing scalars in df
 
         assets = pd.concat([investments, cash], ignore_index=True)
 
-        float_fmt = ['current_price', 'qty', 'market_value', 'profit_dol', 'profit_pct']
-        str_fmt = ['asset']
+        float_fmt = ["current_price", "qty", "market_value", "profit_dol", "profit_pct"]
+        str_fmt = ["asset"]
 
         for col in float_fmt:
             assets[col] = assets[col].astype(float)
@@ -251,31 +256,42 @@ class Alpaca:
         for col in str_fmt:
             assets[col] = assets[col].astype(str)
 
-        rounding_2 = ['market_value', 'profit_dol']
-        rounding_4 = ['profit_pct']
+        rounding_2 = ["market_value", "profit_dol"]
+        rounding_4 = ["profit_pct"]
 
         assets[rounding_2] = assets[rounding_2].apply(lambda x: pd.Series.round(x, 2))
         assets[rounding_4] = assets[rounding_4].apply(lambda x: pd.Series.round(x, 4))
 
-        asset_sum = assets['market_value'].sum()
-        assets['portfolio_pct'] = assets['market_value'] / asset_sum
+        asset_sum = assets["market_value"].sum()
+        assets["portfolio_pct"] = assets["market_value"] / asset_sum
 
         # Add yf_ticker column so look up of Yahoo Finance! prices is easier
-        assets['yf_ticker'] = assets['asset'].apply(lambda x: x[:3] + '-' + x[3:] if len(x) == 6 else x)
+        assets["yf_ticker"] = assets["asset"].apply(
+            lambda x: x[:3] + "-" + x[3:] if len(x) == 6 else x
+        )
 
         return assets
 
     @staticmethod
     def is_market_open():
-        nyse = pytz.timezone('US/Eastern')
+        nyse = pytz.timezone("US/Eastern")
         current_time = datetime.now(nyse)
 
-        nyse_calendar = mcal.get_calendar('NYSE')
-        market_schedule = nyse_calendar.schedule(start_date=current_time.date(), end_date=current_time.date(), start="pre", end="post")
+        nyse_calendar = mcal.get_calendar("NYSE")
+        market_schedule = nyse_calendar.schedule(
+            start_date=current_time.date(),
+            end_date=current_time.date(),
+            start="pre",
+            end="post",
+        )
 
         if not market_schedule.empty:
-            market_open = market_schedule.iloc[0]['pre'].to_pydatetime().astimezone(nyse)
-            market_close = market_schedule.iloc[0]['post'].to_pydatetime().astimezone(nyse)
+            market_open = (
+                market_schedule.iloc[0]["pre"].to_pydatetime().astimezone(nyse)
+            )
+            market_close = (
+                market_schedule.iloc[0]["post"].to_pydatetime().astimezone(nyse)
+            )
 
             if market_open <= current_time <= market_close:
                 return True
@@ -292,23 +308,34 @@ class Alpaca:
         """
 
         # Get the current time in Eastern Time
-        et_tz = pytz.timezone('US/Eastern')
+        et_tz = pytz.timezone("US/Eastern")
         current_time = datetime.now(et_tz)
 
         # Define the sell criteria
         TradeOpps = TradingOpportunities()
         df_current_positions = self.get_current_positions()
         df_current_positions_hist = TradeOpps.get_asset_info(
-            df=df_current_positions[df_current_positions['yf_ticker'] != 'Cash'])
+            df=df_current_positions[df_current_positions["yf_ticker"] != "Cash"]
+        )
 
         # Sales based on technical indicator
-        sell_criteria = ((df_current_positions_hist[['bbhi14', 'bbhi30', 'bbhi50', 'bbhi200']] == 1).any(axis=1)) | \
-                        ((df_current_positions_hist[['rsi14', 'rsi30', 'rsi50', 'rsi200']] >= 70).any(axis=1))
+        sell_criteria = (
+            (
+                df_current_positions_hist[["bbhi14", "bbhi30", "bbhi50", "bbhi200"]]
+                == 1
+            ).any(axis=1)
+        ) | (
+            (
+                df_current_positions_hist[["rsi14", "rsi30", "rsi50", "rsi200"]] >= 70
+            ).any(axis=1)
+        )
 
         # Filter the DataFrame
         sell_filtered_df = df_current_positions_hist[sell_criteria]
-        sell_filtered_df['alpaca_symbol'] = sell_filtered_df['Symbol'].str.replace('-', '')
-        symbols = list(sell_filtered_df['alpaca_symbol'])
+        sell_filtered_df["alpaca_symbol"] = sell_filtered_df["Symbol"].str.replace(
+            "-", ""
+        )
+        symbols = list(sell_filtered_df["alpaca_symbol"])
 
         # Determine whether to trade all symbols or only those with "-USD" in their name
         if self.is_market_open():
@@ -322,20 +349,19 @@ class Alpaca:
             try:
                 if symbol in symbols:  # Check if the symbol is in the sell_filtered_df
                     print("• selling " + str(symbol))
-                    qty = df_current_positions[df_current_positions['asset'] == symbol]['qty'].values[0]
+                    qty = df_current_positions[df_current_positions["asset"] == symbol][
+                        "qty"
+                    ].values[0]
                     self.api.submit_order(
                         order_data=OrderRequest(
-                            symbol=symbol,
-                            time_in_force='gtc',
-                            qty=qty,
-                            side="sell"
+                            symbol=symbol, time_in_force="gtc", qty=qty, side="sell"
                         )
                     )
                     executed_sales.append([symbol, round(qty)])
             except Exception as e:
                 continue
 
-        executed_sales_df = pd.DataFrame(executed_sales, columns=['ticker', 'quantity'])
+        executed_sales_df = pd.DataFrame(executed_sales, columns=["ticker", "quantity"])
 
         if len(eligible_symbols) == 0:
             self.sold_message = "• liquidated no positions based on the sell criteria"
@@ -345,21 +371,29 @@ class Alpaca:
         print(self.sold_message)
 
         # Check if the Cash row in df_current_positions is at least 10% of total holdings
-        cash_row = df_current_positions[df_current_positions['asset'] == 'Cash']
-        total_holdings = df_current_positions['market_value'].sum()
+        cash_row = df_current_positions[df_current_positions["asset"] == "Cash"]
+        total_holdings = df_current_positions["market_value"].sum()
 
-        if cash_row['market_value'].values[0] / total_holdings < 0.1:
+        if cash_row["market_value"].values[0] / total_holdings < 0.1:
             # Sort the df_current_positions by profit_pct descending
-            df_current_positions = df_current_positions.sort_values(by=['profit_pct'], ascending=False)
+            df_current_positions = df_current_positions.sort_values(
+                by=["profit_pct"], ascending=False
+            )
 
             # Sell the top 25% of performing assets evenly to make Cash 10% of the total portfolio
-            top_half = df_current_positions.iloc[:len(df_current_positions) // 4]
-            top_half_market_value = top_half['market_value'].sum()
-            cash_needed = total_holdings * 0.1 - cash_row['market_value'].values[0]
+            top_half = df_current_positions.iloc[: len(df_current_positions) // 4]
+            top_half_market_value = top_half["market_value"].sum()
+            cash_needed = total_holdings * 0.1 - cash_row["market_value"].values[0]
 
             for index, row in top_half.iterrows():
-                print("• selling " + str(row['asset']) + " for 10% portfolio cash requirement")
-                amount_to_sell = int((row['market_value'] / top_half_market_value) * cash_needed)
+                print(
+                    "• selling "
+                    + str(row["asset"])
+                    + " for 10% portfolio cash requirement"
+                )
+                amount_to_sell = int(
+                    (row["market_value"] / top_half_market_value) * cash_needed
+                )
 
                 # If the amount_to_sell is zero or an APIError occurs, continue to the next iteration
                 if amount_to_sell == 0:
@@ -368,24 +402,28 @@ class Alpaca:
                 try:
                     self.api.submit_order(
                         order_data=OrderRequest(
-                            symbol=row['asset'],
+                            symbol=row["asset"],
                             time_in_force="day",
                             type="market",
                             notional=amount_to_sell,
-                            side="sell"
+                            side="sell",
                         )
                     )
-                    executed_sales.append([row['asset'], amount_to_sell])
+                    executed_sales.append([row["asset"], amount_to_sell])
                 except APIError as e:
                     print(f"\t○ {row['asset']}: {e}")
 
             # Set the locale to the US
-            locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+            locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
 
             # Convert cash_needed to a string with dollar sign and commas
             cash_needed_str = locale.currency(cash_needed, grouping=True)
 
-            print("• Sold " + cash_needed_str + " of top 25% of performing assets to reach 10% cash position")
+            print(
+                "• Sold "
+                + cash_needed_str
+                + " of top 25% of performing assets to reach 10% cash position"
+            )
 
         return executed_sales_df
 
@@ -401,10 +439,12 @@ class Alpaca:
 
         # Get the current positions and available cash
         df_current_positions = self.get_current_positions()
-        available_cash = df_current_positions[df_current_positions['asset'] == 'Cash']['market_value'].values[0]
+        available_cash = df_current_positions[df_current_positions["asset"] == "Cash"][
+            "market_value"
+        ].values[0]
 
         # Get the current time in Eastern Time
-        et_tz = pytz.timezone('US/Eastern')
+        et_tz = pytz.timezone("US/Eastern")
         current_time = datetime.now(et_tz)
 
         # Determine whether to trade all symbols or only those with "-USD" in their name
@@ -423,20 +463,20 @@ class Alpaca:
                     self.api.submit_order(
                         order_data=OrderRequest(
                             symbol=symbol,
-                            time_in_force='day',
+                            time_in_force="day",
                             notional=round(available_cash / len(eligible_symbols)),
                             side="buy",
-                            type="market"
+                            type="market",
                         )
                     )
                 else:
                     self.api.submit_order(
                         order_data=OrderRequest(
                             symbol=symbol,
-                            type='market',
+                            type="market",
                             notional=round(available_cash / len(eligible_symbols)),
                             side="buy",
-                            time_in_force='day'
+                            time_in_force="day",
                         )
                     )
                 ordered.append(symbol)
