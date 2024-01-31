@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="./img/tradingbot.png" alt="Statoscope example" width="400">
-</p>
-
 # Trading Bot with Slack Notifications
 
 This trading bot is designed to automate the process of buying oversold assets and selling overbought assets based on Yahoo Finance data. The bot also sends notifications about recent trades via Slack during specified hours. The project uses the Alpaca API for trading operations and the Yahoo Finance API to identify trading opportunities.
@@ -13,7 +9,6 @@ The project is organized into the following files:
 1. `src/trading_classes.py`: Contains the `TradingOpportunities` and `Alpaca` classes, which handle scraping trading opportunities and executing buy/sell orders, respectively.
 2. `src/slack_app_notification.py`: Contains the `slack_app_notification()` function, which formats and returns a string containing the trading activity details to be sent via Slack.
 3. `main.py`: The main script that brings together the functionality from the `src` folder, executing the trading bot's operations and sending Slack notifications.
-4. `creds.cfg`: A configuration file that stores the Alpaca API and Slack API credentials. (Make sure to add your own API keys and tokens here)
 5. `.circleci/config.yml`: The CircleCI configuration file that defines jobs, steps, and workflows for automated testing, building, and deployment.
 
 ## How It Works
@@ -44,7 +39,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-4. Add your Alpaca API and Slack API credentials to the `creds.cfg` file.
+4. Add your Alpaca API and Slack API credentials to the `.env` file.
 5. Run the trading bot:
 
 ```console

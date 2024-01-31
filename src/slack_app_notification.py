@@ -16,7 +16,7 @@ api = TradingClient(
 )
 
 
-def slack_app_notification(days_hist=1):
+def slack_app_notification():
     """
     Description: creates a formatted string detailing
 

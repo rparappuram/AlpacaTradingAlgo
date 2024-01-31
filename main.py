@@ -10,7 +10,7 @@ from slack import WebClient
 from slack.errors import SlackApiError
 
 
-def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_crypto=30):
+def main(n_stocks=30, n_crypto=30):
     """
     Description: Uses your Alpaca API credentials (including whether you're paper trading or live trading) and
     sells overbought assets in portfolio then buys oversold assets in the market per YahooFinance! opportunities.
@@ -63,7 +63,7 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
     ### Slack notification
 
     # Get orders from the past hour
-    orders = slack_app_notification(days_hist=days_hist)
+    orders = slack_app_notification()
 
     # Authenticate to the Slack API via the generated token
     client = WebClient(os.getenv("SLACK_API"))
