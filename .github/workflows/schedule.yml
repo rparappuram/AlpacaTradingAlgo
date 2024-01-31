@@ -3,7 +3,8 @@ name: Scheduled Run
 on:
   schedule:
     # Runs every 10 minutes
-    - cron: '*/10 * * * *'
+    - cron: "0,10,20,30,40,50 * * * *"
+  workflow_dispatch:
 
 jobs:
   build-and-test:
