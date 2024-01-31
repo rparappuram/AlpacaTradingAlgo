@@ -377,8 +377,8 @@ class Alpaca:
                         )
                     )
                     executed_sales.append([row['asset'], amount_to_sell])
-                except APIError:
-                    continue
+                except APIError as e:
+                    print(f"\t○ {row['asset']}: {e}")
 
             # Set the locale to the US
             locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
@@ -416,6 +416,8 @@ class Alpaca:
             eligible_symbols = [symbol for symbol in tickers if "-USD" in symbol]
 
         # Submit buy orders for eligible symbols
+        print("• buying: " + str(eligible_symbols))
+        ordered = []
         for symbol in eligible_symbols:
             try:
                 if len(symbol) >= 6:
@@ -440,14 +442,9 @@ class Alpaca:
                     )
 
             except Exception as e:
-                print(e, end='\n\n')
+                print("\t○ " + str(e))
                 continue
 
-        if len(eligible_symbols) == 0:
-            self.bought_message = "• executed no buy orders based on the buy criteria"
-        else:
-            self.bought_message = f"• executed buy orders for {''.join([symbol + ', ' if i < len(eligible_symbols) - 1 else 'and ' + symbol for i, symbol in enumerate(eligible_symbols)])} based on the buy criteria"
-
-        print(self.bought_message)
+        print("• bought: " + str(ordered))
 
         self.tickers_bought = eligible_symbols

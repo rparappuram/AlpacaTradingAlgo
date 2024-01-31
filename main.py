@@ -21,8 +21,9 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
         • n_stocks: number of top losing stocks from YahooFinance! to be considered for trades
         • n_crypto: number of top traded/valued crypto assets from YahooFinance! to be considered for trades
     """
-    config = configparser.ConfigParser()
-    config.read("creds.cfg")
+
+    current_time = datetime.now(pytz.timezone('US/Eastern'))
+    print(f"Timestamp: {current_time.strftime('%Y-%m-%d %I:%M %p')}")
 
     api = TradingClient(
         api_key=os.getenv("API_KEY"),
@@ -61,45 +62,20 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
     ##############################
     ### Slack notification
 
-    def part_of_day():
-        current_time = datetime.now(pytz.timezone('US/Eastern'))
-        if current_time.hour < 12:
-            return "️💰☕️ *Good morning* ☕️💰"
-        else:
-            return "💰🌅 *Good afternoon* 🌅💰"
-
-    current_time = datetime.now(pytz.timezone('US/Eastern'))
-    print(f"• Current time: {current_time.strftime('%Y-%m-%d %H:%M:%S %p')}")
-    hour = current_time.hour
-
     # Get orders from the past 24 hours
     orders = slack_app_notification(days_hist=days_hist)
 
-    if orders != "":
-        print("• Sending message")
-
-        # Authenticate to the Slack API via the generated token
-        client = WebClient(os.getenv("SLACK_API"))
-
-        message = (
-            f"{part_of_day()}\n\n"
-            "The trading bot has made the following trades over the past 24hrs:\n\n"
-            f"{orders}\n\n"
-            "Happy trading!\n"
-            "June's Trading Bot 🤖"
+    # Authenticate to the Slack API via the generated token
+    client = WebClient(os.getenv("SLACK_API"))
+    try:
+        response = client.chat_postMessage(
+            channel=os.getenv("CHANNEL_ID"),
+            text=orders,
+            mrkdwn=True,
         )
-
-        try:
-            response = client.chat_postMessage(
-                channel=os.getenv("CHANNEL_ID"),
-                text=message,
-                mrkdwn=True,  # Enable Markdown formatting
-            )
-            print("Message sent successfully")
-        except SlackApiError as e:
-            print(f"Error sending message: {e}")
-    else:
-        print("Not sending message since no trades were made")
+        print("Slack notification sent successfully")
+    except SlackApiError as e:
+        print(f"Error sending Slack notification: {e}")
 
 
 if __name__ == "__main__":
