@@ -2,14 +2,15 @@ name: Scheduled Run
 
 on:
   schedule:
-    # Runs every 10 minutes
-    - cron: "0,10,20,30,40,50 * * * *"
+    - cron: '0 * * * *'
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    environment: Default
 
     steps:
     - uses: actions/checkout@v2
