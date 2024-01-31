@@ -271,12 +271,11 @@ class Alpaca:
         current_time = datetime.now(nyse)
 
         nyse_calendar = mcal.get_calendar('NYSE')
-        market_schedule = nyse_calendar.schedule(start_date=current_time.date(), end_date=current_time.date())
+        market_schedule = nyse_calendar.schedule(start_date=current_time.date(), end_date=current_time.date(), start="pre", end="post")
 
         if not market_schedule.empty:
-            nyse = pytz.timezone('US/Eastern')
-            market_open = market_schedule.iloc[0]['market_open'].to_pydatetime().astimezone(nyse)
-            market_close = market_schedule.iloc[0]['market_close'].to_pydatetime().astimezone(nyse)
+            market_open = market_schedule.iloc[0]['pre'].to_pydatetime().astimezone(nyse)
+            market_close = market_schedule.iloc[0]['post'].to_pydatetime().astimezone(nyse)
 
             if market_open <= current_time <= market_close:
                 return True
