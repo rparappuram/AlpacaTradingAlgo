@@ -21,8 +21,9 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
         • n_stocks: number of top losing stocks from YahooFinance! to be considered for trades
         • n_crypto: number of top traded/valued crypto assets from YahooFinance! to be considered for trades
     """
-    config = configparser.ConfigParser()
-    config.read("creds.cfg")
+
+    current_time = datetime.now(pytz.timezone('US/Eastern'))
+    print(f"Timestamp: {current_time.strftime('%Y-%m-%d %I:%M %p')}")
 
     api = TradingClient(
         api_key=os.getenv("API_KEY"),
@@ -61,14 +62,8 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
     ##############################
     ### Slack notification
 
-    current_time = datetime.now(pytz.timezone('US/Eastern'))
-    print(f"• Current time: {current_time.strftime('%Y-%m-%d %I:%M %p')}")
-    # hour = current_time.hour
-
     # Get orders from the past hour
     orders = slack_app_notification(days_hist=days_hist)
-
-    print("• Sending message")
 
     # Authenticate to the Slack API via the generated token
     client = WebClient(os.getenv("SLACK_API"))
@@ -78,9 +73,9 @@ def main(days_hist=1, st_hr_for_message=6, end_hr_for_message=9, n_stocks=30, n_
             text=orders,
             mrkdwn=True,
         )
-        print("Message sent successfully")
+        print("Slack notification sent successfully")
     except SlackApiError as e:
-        print(f"Error sending message: {e}")
+        print(f"Error sending Slack notification: {e}")
 
 
 if __name__ == "__main__":

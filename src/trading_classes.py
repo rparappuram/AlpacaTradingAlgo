@@ -271,12 +271,11 @@ class Alpaca:
         current_time = datetime.now(nyse)
 
         nyse_calendar = mcal.get_calendar('NYSE')
-        market_schedule = nyse_calendar.schedule(start_date=current_time.date(), end_date=current_time.date())
+        market_schedule = nyse_calendar.schedule(start_date=current_time.date(), end_date=current_time.date(), start="pre", end="post")
 
         if not market_schedule.empty:
-            nyse = pytz.timezone('US/Eastern')
-            market_open = market_schedule.iloc[0]['market_open'].to_pydatetime().astimezone(nyse)
-            market_close = market_schedule.iloc[0]['market_close'].to_pydatetime().astimezone(nyse)
+            market_open = market_schedule.iloc[0]['pre'].to_pydatetime().astimezone(nyse)
+            market_close = market_schedule.iloc[0]['post'].to_pydatetime().astimezone(nyse)
 
             if market_open <= current_time <= market_close:
                 return True
@@ -377,8 +376,8 @@ class Alpaca:
                         )
                     )
                     executed_sales.append([row['asset'], amount_to_sell])
-                except APIError:
-                    continue
+                except APIError as e:
+                    print(f"\t○ {row['asset']}: {e}")
 
             # Set the locale to the US
             locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
@@ -416,6 +415,7 @@ class Alpaca:
             eligible_symbols = [symbol for symbol in tickers if "-USD" in symbol]
 
         # Submit buy orders for eligible symbols
+        print("• buying: " + str(eligible_symbols))
         ordered = []
         for symbol in eligible_symbols:
             try:
@@ -442,16 +442,9 @@ class Alpaca:
                 ordered.append(symbol)
 
             except Exception as e:
-                print(e, end='\n\n')
+                print("\t○ " + str(e))
                 continue
 
-        if len(eligible_symbols) == 0:
-            self.bought_message = "• executed no buy orders based on the buy criteria"
-        elif len(ordered) != len(eligible_symbols):
-            self.bought_message = f"• executed buy orders for {''.join([symbol + ', ' if i < len(ordered) - 1 else 'and ' + symbol for i, symbol in enumerate(ordered)])} based on the buy criteria"
-        else:
-            self.bought_message = f"• executed buy orders for {''.join([symbol + ', ' if i < len(eligible_symbols) - 1 else 'and ' + symbol for i, symbol in enumerate(eligible_symbols)])} based on the buy criteria"
-
-        print(self.bought_message)
+        print("• bought: " + str(ordered))
 
         self.tickers_bought = eligible_symbols
