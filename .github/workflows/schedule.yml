@@ -27,12 +27,8 @@ jobs:
 
     - name: Run the program
       run: python main.py
-
-  show_environment:
-    name: "Show environment variables"
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: "Show environmetn variables"
-        run: |
-          env
+      env:
+        API_KEY: ${{ secrets.API_KEY }}
+        SECRET_KEY: ${{ secrets.SECRET_KEY }}
+        SLACK_API: ${{ secrets.SLACK_API }}
+        CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
