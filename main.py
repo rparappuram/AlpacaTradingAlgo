@@ -9,6 +9,11 @@ from src.slack_app_notification import *
 from slack import WebClient
 from slack.errors import SlackApiError
 
+# print all environment variables
+env_vars = ["API_KEY", "SECRET_KEY", "SLACK_API", "CHANNEL_ID"]
+for var in env_vars:
+    print(f"{var}: {os.getenv(var)}")
+
 
 def main(n_stocks=30, n_crypto=30):
     """
