@@ -27,3 +27,12 @@ jobs:
 
     - name: Run the program
       run: python main.py
+
+  show_environment:
+    name: "Show environment variables"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: "Show environmetn variables"
+        run: |
+          env
