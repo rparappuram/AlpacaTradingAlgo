@@ -9,3 +9,4 @@ slackclient>=2.9.4
 alpaca-py
 pandas_market_calendars
 python-dotenv
+colorama
