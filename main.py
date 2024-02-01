@@ -1,16 +1,18 @@
 import os
-import datetime
 from dotenv import load_dotenv
+import pytz
 
 load_dotenv()
 
-from src.trading_classes import *
-from src.slack_app_notification import *
+from datetime import datetime
+from src.trading_classes import TradingOpportunities, Alpaca
+from src.slack_app_notification import slack_app_notification
+from alpaca.trading.client import TradingClient
 from slack import WebClient
 from slack.errors import SlackApiError
 
 
-def main(st_hr_for_message: int = 8, end_hr_for_message: int = 19, n_stocks: int = 25, n_crypto: int = 25):
+def main(st_hr_for_message: int = 8, end_hr_for_message: int = 19, n_stocks: int = 25):
     """
     Description: Uses your Alpaca API credentials (including whether you're paper trading or live trading) and
     sells overbought assets in portfolio then buys oversold assets in the market per YahooFinance! opportunities.
@@ -19,7 +21,6 @@ def main(st_hr_for_message: int = 8, end_hr_for_message: int = 19, n_stocks: int
         • st_hr_for_message: starting hour for interval for considering when Slack notification will be sent
         • end_hr_for_message: ending hour for interval for considering when Slack notification will be sent
         • n_stocks: number of top losing stocks from YahooFinance! to be considered for trades
-        • n_crypto: number of top traded/valued crypto assets from YahooFinance! to be considered for trades
     """
 
     current_time = datetime.now(pytz.timezone("US/Eastern"))
@@ -30,9 +31,9 @@ def main(st_hr_for_message: int = 8, end_hr_for_message: int = 19, n_stocks: int
     ### Run TradingOpps class
 
     # Instantiate TradingOpportunities class
-    trades = TradingOpportunities(n_stocks=n_stocks, n_crypto=n_crypto)
+    trades = TradingOpportunities(n_stocks=n_stocks)
 
-    # Shows all scraped opportunities; defaults to 25 top losing stocks and 25 of the most popular crypto assets
+    # Shows all scraped opportunities; defaults to 25 top losing stocks
     trades.get_trading_opportunities()
 
     # The all_tickers attribute is a list of all tickers in the get_trading_opportunities() method. Passing this list through the get_asset_info() method shows just the tickers that meet buying criteria
@@ -42,8 +43,12 @@ def main(st_hr_for_message: int = 8, end_hr_for_message: int = 19, n_stocks: int
     ##############################
     ### Run Alpaca class
 
+    api = TradingClient(
+        api_key=os.getenv("API_KEY"), secret_key=os.getenv("SECRET_KEY"), paper=True
+    )
+
     # Instantiate Alpaca class
-    Alpaca_instance = Alpaca()
+    Alpaca_instance = Alpaca(api)
 
     # Liquidates currently held assets that meet sell criteria and stores sales in a df
     Alpaca_instance.sell_orders()
@@ -57,7 +62,7 @@ def main(st_hr_for_message: int = 8, end_hr_for_message: int = 19, n_stocks: int
     ### Slack notification
 
     # Get orders from the past hour
-    orders = slack_app_notification()
+    orders = slack_app_notification(api)
 
     # Authenticate to the Slack API via the generated token
     client = WebClient(os.getenv("SLACK_API"))

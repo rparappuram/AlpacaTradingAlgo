@@ -1,22 +1,13 @@
 import os
-import configparser
-from alpaca.trading.client import TradingClient
-from alpaca.trading.requests import GetOrdersRequest
 
+from alpaca.trading import TradingClient
+from alpaca.trading.requests import GetOrdersRequest
 from datetime import datetime, timedelta
 
 TIMESTAMP_FILE = "last_run_timestamp.txt"
 
-# These are paper trading config details
-config = configparser.ConfigParser()
-config.read("creds.cfg")
 
-api = TradingClient(
-    api_key=os.getenv("API_KEY"), secret_key=os.getenv("SECRET_KEY"), paper=True
-)
-
-
-def slack_app_notification():
+def slack_app_notification(api: TradingClient):
     """
     Description: creates a formatted string detailing
 
@@ -28,8 +19,6 @@ def slack_app_notification():
     total_purchases = 0
 
     # Initialize dictionaries to store asset details
-    crypto_sales = {}
-    crypto_purchases = {}
     stock_sales = {}
     stock_purchases = {}
 
@@ -46,35 +35,16 @@ def slack_app_notification():
         )
         if trade.side == "sell":
             total_sales += amount
-            if "USD" in symbol:
-                crypto_sales[symbol] = crypto_sales.get(symbol, 0) + amount
-            else:
-                stock_sales[symbol] = stock_sales.get(symbol, 0) + amount
+            stock_sales[symbol] = stock_sales.get(symbol, 0) + amount
         else:
             total_purchases += amount
-            if "USD" in symbol:
-                crypto_purchases[symbol] = crypto_purchases.get(symbol, 0) + amount
-            else:
-                stock_purchases[symbol] = stock_purchases.get(symbol, 0) + amount
+            stock_purchases[symbol] = stock_purchases.get(symbol, 0) + amount
 
     # Format the results
     results = []
 
     total_sales_str = f"*`Total Sales: ${total_sales:,.2f}`*"
     total_purchases_str = f"*`Total Purchases: ${total_purchases:,.2f}`*"
-
-    if crypto_sales:
-        crypto_sales_sorted = sorted(
-            crypto_sales.items(), key=lambda x: x[1], reverse=True
-        )
-        crypto_sales_formatted = [
-            "  _*Crypto: $" + f"{sum(crypto_sales.values()):,.2f}*_"
-        ]
-        for symbol, amount in crypto_sales_sorted:
-            crypto_sales_formatted.append(f"    {symbol} | Amount: ${amount:,.2f}")
-        results.append(total_sales_str)
-        results += crypto_sales_formatted
-        results.append("")
 
     if stock_sales:
         stock_sales_sorted = sorted(
@@ -85,22 +55,8 @@ def slack_app_notification():
         ]
         for symbol, amount in stock_sales_sorted:
             stock_sales_formatted.append(f"    {symbol} | Amount: ${amount:,.2f}")
-        if not crypto_sales:
-            results.append(total_sales_str)
+        results.append(total_sales_str)
         results += stock_sales_formatted
-        results.append("")
-
-    if crypto_purchases:
-        crypto_purchases_sorted = sorted(
-            crypto_purchases.items(), key=lambda x: x[1], reverse=True
-        )
-        crypto_purchases_formatted = [
-            "  _*Crypto: $" + f"{sum(crypto_purchases.values()):,.2f}*_"
-        ]
-        for symbol, amount in crypto_purchases_sorted:
-            crypto_purchases_formatted.append(f"    {symbol} | Amount: ${amount:,.2f}")
-        results.append(total_purchases_str)
-        results += crypto_purchases_formatted
         results.append("")
 
     if stock_purchases:
@@ -112,8 +68,7 @@ def slack_app_notification():
         ]
         for symbol, amount in stock_purchases_sorted:
             stock_purchases_formatted.append(f"    {symbol} | Amount: ${amount:,.2f}")
-        if not crypto_purchases:
-            results.append(total_purchases_str)
+        results.append(total_purchases_str)
         results += stock_purchases_formatted
 
     # Add the available cash and portfolio value

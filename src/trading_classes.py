@@ -1,12 +1,10 @@
-import os
 import pandas as pd
 import yfinance as yf
-from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import OrderRequest
 import pytz
-import locale
 import pandas_market_calendars as mcal
 
+from alpaca.trading import TradingClient
 from alpaca.common.exceptions import APIError
 from ta.volatility import BollingerBands
 from ta.momentum import RSIIndicator
@@ -14,27 +12,26 @@ from ta.trend import sma_indicator
 from tqdm import tqdm
 from requests_html import HTMLSession
 from datetime import datetime
+from colorama import Fore, Style
 
 
 class TradingOpportunities:
-    def __init__(self, n_stocks=25, n_crypto=25):
+    def __init__(self, n_stocks=25):
         """
         Description:
-        Grabs top stock losers and highest valued crypto assets from YahooFinance! to determine trading opportunities using simple technical trading indicators
+        Grabs top stock losers from YahooFinance! to determine trading opportunities using simple technical trading indicators
         such as Bollinger Bands and RSI.
 
         Arguments:
             •  n_stocks: number of top losing stocks that'll be pulled from YahooFinance! and considered in the algo
-            •  n_crypto: number of top traded and most valuable crypto assets that'll be pulled from YahooFinance! and considered in the algo
 
         Methods:
             • raw_get_daily_info(): Grabs a provided site and transforms HTML to a pandas df
-            • get_trading_opportunities(): Grabs df from raw_get_daily_info() and provides just the top "n" losers declared by user in n_stocks and "n" amount of top of most popular crypto assets to examine
+            • get_trading_opportunities(): Grabs df from raw_get_daily_info() and provides just the top "n" losers declared by user in n_stocks to examine
             • get_asset_info(): a df can be provided to specify which assets you'd like info for since this method is used in the Alpaca class. If no df argument is passed then tickers from get_trading_opportunities() method are used.
         """
 
         self.n_stocks = n_stocks
-        self.n_crypto = n_crypto
 
     def raw_get_daily_info(self, site):
         """
@@ -59,80 +56,45 @@ class TradingOpportunities:
         session.close()
         return df
 
-    def get_trading_opportunities(self, n_stocks=None, n_crypto=None):
+    def get_trading_opportunities(self):
         """
         Description:
-        Grabs df from raw_get_daily_info() and provides just the top "n" losers declared by user in n_stocks and "n" amount of top of most popular crypto assets to examine
+        Grabs df from raw_get_daily_info() and provides just the top "n" losers declared by user in n_stocks
 
         Argument(s):
             • n_stocks: Number of top losers to analyze per YahooFinance! top losers site.
-            • n_crypto: Number of most popular crypto assets to grab historical price info from.
         """
-
-        #####################
-        #####################
-        # Crypto part
-        df_crypto = []
-        i = 0
-        while True:
-            try:
-                df_crypto.append(
-                    self.raw_get_daily_info(
-                        "https://finance.yahoo.com/crypto?offset={}&count=100".format(i)
-                    )
-                )
-                i += 100
-                print("processing " + i)
-            except:
-                break
-
-        df_crypto = pd.concat(df_crypto)
-        df_crypto["asset_type"] = "crypto"
-
-        df_crypto = df_crypto.head(self.n_crypto)
-
-        #####################
-        #####################
-        # Stock part
+        # Scrape for top stock losers
         df_stock = self.raw_get_daily_info(
             "https://finance.yahoo.com/losers?offset=0&count=100"
         )
         df_stock["asset_type"] = "stock"
-
         df_stock = df_stock.head(self.n_stocks)
 
-        #####################
-        #####################
-        # Merge df's and return as one
-        dfs = [df_crypto, df_stock]
-        df_opportunities = pd.concat(dfs, axis=0).reset_index(drop=True)
-
         # Create a list of all tickers scraped
-        self.all_tickers = list(df_opportunities["Symbol"])
+        self.all_tickers = list(df_stock["Symbol"])
 
-        return df_opportunities
+        return df_stock
 
-    def get_asset_info(self, df=None):
+    def get_asset_info(self, df_current_positions=None):
         """
         Description:
-        Grabs historical prices for assets, calculates RSI and Bollinger Bands tech signals, and returns a df with all this data for the assets meeting the buy criteria.
+        Grabs historical prices for assets, calculates RSI and Bollinger Bands tech signals, and returns a df with all this data for the assets meeting the buy/sell criteria.
 
         Argument(s):
-            • df: a df can be provided to specify which assets you'd like info for since this method is used in the Alpaca class. If no df argument is passed then tickers from get_trading_opportunities() method are used.
+            • df_current_positions: a df can be provided to specify which assets you'd like info for since this method is used in the Alpaca class. If no df argument is passed then tickers from get_trading_opportunities() method are used.
         """
 
         # Grab technical stock info:
-        if df is None:
+        if df_current_positions is None:
             all_tickers = self.all_tickers
         else:
-            all_tickers = list(df["yf_ticker"])
+            all_tickers = list(df_current_positions["yf_ticker"])
 
         df_tech = []
         for i, symbol in tqdm(
             enumerate(all_tickers),
-            desc="• Grabbing technical metrics for "
-            + str(len(all_tickers))
-            + " assets",
+            desc="Grabbing technical metrics for " + str(len(all_tickers)) + " assets",
         ):
             try:
                 Ticker = yf.Ticker(symbol)
@@ -177,22 +139,31 @@ class TradingOpportunities:
                 + ["bblo" + str(n) for n in n_nums]
             )
 
-        # Define the buy criteria
-        buy_criteria = (
-            (df_tech[["bblo14", "bblo30", "bblo50", "bblo200"]] == 1).any(axis=1)
-        ) | ((df_tech[["rsi14", "rsi30", "rsi50", "rsi200"]] <= 30).any(axis=1))
+        if df_current_positions is None:
+            # Define the buy criteria
+            buy_criteria = (
+                (df_tech[["bblo14", "bblo30", "bblo50", "bblo200"]] == 1).any(axis=1)
+            ) | ((df_tech[["rsi14", "rsi30", "rsi50", "rsi200"]] <= 30).any(axis=1))
 
-        # Filter the DataFrame
-        buy_filtered_df = df_tech[buy_criteria]
+            # Filter the DataFrame
+            filtered_df = df_tech[buy_criteria]
+        else:
+            # Sales based on technical indicator
+            sell_criteria = (
+                (df_tech[["bbhi14", "bbhi30", "bbhi50", "bbhi200"]] == 1).any(axis=1)
+            ) | ((df_tech[["rsi14", "rsi30", "rsi50", "rsi200"]] >= 70).any(axis=1))
+
+            # Filter the DataFrame
+            filtered_df = df_tech[sell_criteria]
 
         # Create a list of tickers to trade
-        self.buy_tickers = list(buy_filtered_df["Symbol"])
+        self.buy_tickers = list(filtered_df["Symbol"])
 
-        return buy_filtered_df
+        return filtered_df
 
 
 class Alpaca:
-    def __init__(self):
+    def __init__(self, api: TradingClient):
         """
         Description: Object providing Alpaca balance details and executes buy/sell trades
 
@@ -204,9 +175,7 @@ class Alpaca:
         • get_current_positions(): shows current balance of Alpaca account
         """
 
-        self.api = TradingClient(
-            api_key=os.getenv("API_KEY"), secret_key=os.getenv("SECRET_KEY"), paper=True
-        )
+        self.api = api
 
     def get_current_positions(self):
         """
@@ -215,23 +184,22 @@ class Alpaca:
         positions = self.api.get_all_positions()
         investments = pd.DataFrame(
             {
-                "asset": [x.symbol for x in self.api.get_all_positions()],
-                "current_price": [
-                    x.current_price for x in self.api.get_all_positions()
-                ],
-                "qty": [x.qty for x in self.api.get_all_positions()],
-                "market_value": [x.market_value for x in self.api.get_all_positions()],
-                "profit_dol": [x.unrealized_pl for x in self.api.get_all_positions()],
-                "profit_pct": [x.unrealized_plpc for x in self.api.get_all_positions()],
+                "asset": [x.symbol for x in positions],
+                "current_price": [x.current_price for x in positions],
+                "qty": [x.qty for x in positions],
+                "market_value": [x.market_value for x in positions],
+                "profit_dol": [x.unrealized_pl for x in positions],
+                "profit_pct": [x.unrealized_plpc for x in positions],
             }
         )
 
+        account = self.api.get_account()
         cash = pd.DataFrame(
             {
                 "asset": "Cash",
-                "current_price": self.api.get_account().cash,
-                "qty": self.api.get_account().cash,
-                "market_value": self.api.get_account().cash,
+                "current_price": account.cash,
+                "qty": account.cash,
+                "market_value": account.cash,
                 "profit_dol": 0,
                 "profit_pct": 0,
             },
@@ -300,31 +268,14 @@ class Alpaca:
         • self.df_current_positions: Needed to inform how much of each position should be sold.
         """
 
-        # Get the current time in Eastern Time
-        et_tz = pytz.timezone("US/Eastern")
-        current_time = datetime.now(et_tz)
-
-        # Define the sell criteria
+        # Get the current positions then filter based on sell criteria
         TradeOpps = TradingOpportunities()
         df_current_positions = self.get_current_positions()
-        df_current_positions_hist = TradeOpps.get_asset_info(
-            df=df_current_positions[df_current_positions["yf_ticker"] != "Cash"]
+        sell_filtered_df = TradeOpps.get_asset_info(
+            df_current_positions=df_current_positions[
+                df_current_positions["yf_ticker"] != "Cash"
+            ]
         )
-
-        # Sales based on technical indicator
-        sell_criteria = (
-            (
-                df_current_positions_hist[["bbhi14", "bbhi30", "bbhi50", "bbhi200"]]
-                == 1
-            ).any(axis=1)
-        ) | (
-            (
-                df_current_positions_hist[["rsi14", "rsi30", "rsi50", "rsi200"]] >= 70
-            ).any(axis=1)
-        )
-
-        # Filter the DataFrame
-        sell_filtered_df = df_current_positions_hist[sell_criteria]
         sell_filtered_df["alpaca_symbol"] = sell_filtered_df["Symbol"].str.replace(
             "-", ""
         )
@@ -336,87 +287,85 @@ class Alpaca:
         else:
             eligible_symbols = [symbol for symbol in symbols if "-USD" in symbol]
 
-            # Submit sell orders for eligible symbols
+        # Submit sell orders for eligible symbols
+        print(f"{Fore.YELLOW}Selling: {str(eligible_symbols)}{Style.RESET_ALL}")
         executed_sales = []
         for symbol in eligible_symbols:
             try:
                 if symbol in symbols:  # Check if the symbol is in the sell_filtered_df
-                    print("• selling " + str(symbol))
                     qty = df_current_positions[df_current_positions["asset"] == symbol][
                         "qty"
                     ].values[0]
-                    self.api.submit_order(
+                    sell_order = self.api.submit_order(
                         order_data=OrderRequest(
-                            symbol=symbol, time_in_force="gtc", qty=qty, side="sell"
+                            symbol=symbol,
+                            time_in_force="day",
+                            qty=qty,
+                            side="sell",
+                            type="market",
                         )
                     )
-                    executed_sales.append([symbol, round(qty)])
-            except Exception as e:
+                    executed_sales.append(
+                        [
+                            symbol,
+                            float(sell_order.filled_avg_price)
+                            * float(sell_order.filled_qty),
+                        ]
+                    )
+            except APIError as e:
+                print(f"{Fore.RED}{e}{Style.RESET_ALL}")
                 continue
 
-        executed_sales_df = pd.DataFrame(executed_sales, columns=["ticker", "quantity"])
+        executed_sales_df = pd.DataFrame(executed_sales, columns=["ticker", "amount"])
 
-        if len(eligible_symbols) == 0:
-            self.sold_message = "• liquidated no positions based on the sell criteria"
-        else:
-            self.sold_message = f"• executed sell orders for {''.join([symbol + ', ' if i < len(eligible_symbols) - 1 else 'and ' + symbol for i, symbol in enumerate(eligible_symbols)])}based on the sell criteria"
+        print(f"{Fore.GREEN}Sold:\n{executed_sales_df}{Style.RESET_ALL}")
 
-        print(self.sold_message)
+        # # Check if the Cash row in df_current_positions is at least 10% of total holdings
+        # cash_row = df_current_positions[df_current_positions["asset"] == "Cash"]
+        # total_holdings = df_current_positions["market_value"].sum()
 
-        # Check if the Cash row in df_current_positions is at least 10% of total holdings
-        cash_row = df_current_positions[df_current_positions["asset"] == "Cash"]
-        total_holdings = df_current_positions["market_value"].sum()
+        # if cash_row["market_value"].values[0] / total_holdings < 0.1:
+        #     # Sort the df_current_positions by profit_pct descending
+        #     df_current_positions = df_current_positions.sort_values(
+        #         by=["profit_pct"], ascending=False
+        #     )
 
-        if cash_row["market_value"].values[0] / total_holdings < 0.1:
-            # Sort the df_current_positions by profit_pct descending
-            df_current_positions = df_current_positions.sort_values(
-                by=["profit_pct"], ascending=False
-            )
+        #     # Sell the top 25% of performing assets evenly to make Cash 10% of the total portfolio
+        #     top_half = df_current_positions.iloc[: len(df_current_positions) // 4]
+        #     top_half_market_value = top_half["market_value"].sum()
+        #     cash_needed = total_holdings * 0.1 - cash_row["market_value"].values[0]
 
-            # Sell the top 25% of performing assets evenly to make Cash 10% of the total portfolio
-            top_half = df_current_positions.iloc[: len(df_current_positions) // 4]
-            top_half_market_value = top_half["market_value"].sum()
-            cash_needed = total_holdings * 0.1 - cash_row["market_value"].values[0]
+        #     for index, row in top_half.iterrows():
+        #         print(f"{Fore.YELLOW}Selling {row['asset']} for 10% portfolio cash requirement{Style.RESET_ALL}")
+        #         amount_to_sell = int(
+        #             (row["market_value"] / top_half_market_value) * cash_needed
+        #         )
 
-            for index, row in top_half.iterrows():
-                print(
-                    "• selling "
-                    + str(row["asset"])
-                    + " for 10% portfolio cash requirement"
-                )
-                amount_to_sell = int(
-                    (row["market_value"] / top_half_market_value) * cash_needed
-                )
+        #         # If the amount_to_sell is zero or an APIError occurs, continue to the next iteration
+        #         if amount_to_sell == 0:
+        #             continue
 
-                # If the amount_to_sell is zero or an APIError occurs, continue to the next iteration
-                if amount_to_sell == 0:
-                    continue
+        #         try:
+        #             self.api.submit_order(
+        #                 order_data=OrderRequest(
+        #                     symbol=row["asset"],
+        #                     time_in_force="day",
+        #                     type="market",
+        #                     notional=amount_to_sell,
+        #                     side="sell",
+        #                 )
+        #             )
+        #             executed_sales.append([row["asset"], amount_to_sell])
+        #         except APIError as e:
+        #             print(f"{Fore.RED}{e}{Style.RESET_ALL}")
 
-                try:
-                    self.api.submit_order(
-                        order_data=OrderRequest(
-                            symbol=row["asset"],
-                            time_in_force="day",
-                            type="market",
-                            notional=amount_to_sell,
-                            side="sell",
-                        )
-                    )
-                    executed_sales.append([row["asset"], amount_to_sell])
-                except APIError as e:
-                    print(f"\t○ {row['asset']}: {e}")
+        #     # Set the locale to the US
+        #     locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
 
-            # Set the locale to the US
-            locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
+        #     # Convert cash_needed to a string with dollar sign and commas
+        #     cash_needed_str = locale.currency(cash_needed, grouping=True)
 
-            # Convert cash_needed to a string with dollar sign and commas
-            cash_needed_str = locale.currency(cash_needed, grouping=True)
-
-            print(
-                "• Sold "
-                + cash_needed_str
-                + " of top 25% of performing assets to reach 10% cash position"
-            )
+        #     print(f"{Fore.GREEN}Sold {cash_needed_str} of top 25% of performing assets to reach 10% cash position{Style.RESET_ALL}")
 
         return executed_sales_df
 
@@ -436,10 +385,6 @@ class Alpaca:
             "market_value"
         ].values[0]
 
-        # Get the current time in Eastern Time
-        et_tz = pytz.timezone("US/Eastern")
-        current_time = datetime.now(et_tz)
-
         # Determine whether to trade all symbols or only those with "-USD" in their name
         market_open = self.is_market_open()
         if market_open:
@@ -448,36 +393,31 @@ class Alpaca:
             eligible_symbols = [symbol for symbol in tickers if "-USD" in symbol]
 
         # Submit buy orders for eligible symbols
-        print("• buying: " + str(eligible_symbols))
-        ordered = []
+        print(f"{Fore.YELLOW}Buying: {str(eligible_symbols)}{Style.RESET_ALL}")
+        executed_buys = []
         for symbol in eligible_symbols:
             try:
-                if len(symbol) >= 6:
-                    self.api.submit_order(
-                        order_data=OrderRequest(
-                            symbol=symbol,
-                            time_in_force="day",
-                            notional=round(available_cash / len(eligible_symbols)),
-                            side="buy",
-                            type="market",
-                        )
+                buy_order = self.api.submit_order(
+                    order_data=OrderRequest(
+                        symbol=symbol,
+                        type="market",
+                        notional=round(available_cash / len(eligible_symbols)),
+                        side="buy",
+                        time_in_force="day",
                     )
-                else:
-                    self.api.submit_order(
-                        order_data=OrderRequest(
-                            symbol=symbol,
-                            type="market",
-                            notional=round(available_cash / len(eligible_symbols)),
-                            side="buy",
-                            time_in_force="day",
-                        )
-                    )
-                ordered.append(symbol)
+                )
+                executed_buys.append(
+                    [
+                        symbol,
+                        float(buy_order.filled_avg_price) * float(buy_order.filled_qty),
+                    ]
+                )
 
-            except Exception as e:
-                print("\t○ " + str(e))
+            except APIError as e:
+                print(f"{Fore.RED}{e}{Style.RESET_ALL}")
                 continue
 
-        print("• bought: " + str(ordered))
+        executed_buys_df = pd.DataFrame(executed_buys, columns=["ticker", "amount"])
+        print(f"{Fore.GREEN}Bought:\n{executed_buys_df}{Style.RESET_ALL}")
 
         self.tickers_bought = eligible_symbols
