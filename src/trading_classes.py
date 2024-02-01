@@ -305,18 +305,12 @@ class Alpaca:
                             type="market",
                         )
                     )
-                    executed_sales.append(
-                        [
-                            symbol,
-                            float(sell_order.filled_avg_price)
-                            * float(sell_order.filled_qty),
-                        ]
-                    )
+                    executed_sales.append([symbol, qty])
             except APIError as e:
                 print(f"{Fore.RED}{e}{Style.RESET_ALL}")
                 continue
 
-        executed_sales_df = pd.DataFrame(executed_sales, columns=["ticker", "amount"])
+        executed_sales_df = pd.DataFrame(executed_sales, columns=["ticker", "qty"])
 
         print(f"{Fore.GREEN}Sold:\n{executed_sales_df}{Style.RESET_ALL}")
 
@@ -397,27 +391,23 @@ class Alpaca:
         executed_buys = []
         for symbol in eligible_symbols:
             try:
-                buy_order = self.api.submit_order(
+                qty = round(available_cash / len(eligible_symbols))
+                self.api.submit_order(
                     order_data=OrderRequest(
                         symbol=symbol,
                         type="market",
-                        notional=round(available_cash / len(eligible_symbols)),
+                        notional=qty,
                         side="buy",
                         time_in_force="day",
                     )
                 )
-                executed_buys.append(
-                    [
-                        symbol,
-                        float(buy_order.filled_avg_price) * float(buy_order.filled_qty),
-                    ]
-                )
+                executed_buys.append([symbol, qty])
 
             except APIError as e:
                 print(f"{Fore.RED}{e}{Style.RESET_ALL}")
                 continue
 
-        executed_buys_df = pd.DataFrame(executed_buys, columns=["ticker", "amount"])
+        executed_buys_df = pd.DataFrame(executed_buys, columns=["ticker", "qty"])
         print(f"{Fore.GREEN}Bought:\n{executed_buys_df}{Style.RESET_ALL}")
 
         self.tickers_bought = eligible_symbols

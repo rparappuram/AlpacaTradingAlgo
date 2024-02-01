@@ -13,9 +13,6 @@ on:
     # 10 minutes before post-market closes (7:50 PM EST -> 12:50 AM UTC next day)
     - cron: '45 0 * * *'
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   build-and-test:
