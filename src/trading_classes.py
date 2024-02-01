@@ -3,7 +3,6 @@ import pandas as pd
 import yfinance as yf
 from alpaca.trading.client import TradingClient
 from alpaca.trading.requests import OrderRequest
-import configparser
 import pytz
 import locale
 import pandas_market_calendars as mcal
@@ -193,7 +192,7 @@ class TradingOpportunities:
 
 
 class Alpaca:
-    def __init__(self, api):
+    def __init__(self):
         """
         Description: Object providing Alpaca balance details and executes buy/sell trades
 
@@ -205,9 +204,6 @@ class Alpaca:
         • get_current_positions(): shows current balance of Alpaca account
         """
 
-        config = configparser.ConfigParser()
-        config.read("creds.cfg")
-
         self.api = TradingClient(
             api_key=os.getenv("API_KEY"), secret_key=os.getenv("SECRET_KEY"), paper=True
         )
@@ -215,11 +211,8 @@ class Alpaca:
     def get_current_positions(self):
         """
         Description: Returns a df with current positions in account
-
-        Argument(s):
-        • api: this is the instantiated session you'll need to kick-off define before doing any analysis.
         """
-
+        positions = self.api.get_all_positions()
         investments = pd.DataFrame(
             {
                 "asset": [x.symbol for x in self.api.get_all_positions()],

@@ -9,13 +9,8 @@ from src.slack_app_notification import *
 from slack import WebClient
 from slack.errors import SlackApiError
 
-# print all environment variables
-env_vars = ["API_KEY", "SECRET_KEY", "SLACK_API", "CHANNEL_ID"]
-for var in env_vars:
-    print(f"{var}: {os.getenv(var)}")
 
-
-def main(n_stocks=30, n_crypto=30):
+def main(st_hr_for_message: int = 8, end_hr_for_message: int = 19, n_stocks: int = 25, n_crypto: int = 25):
     """
     Description: Uses your Alpaca API credentials (including whether you're paper trading or live trading) and
     sells overbought assets in portfolio then buys oversold assets in the market per YahooFinance! opportunities.
@@ -29,12 +24,6 @@ def main(n_stocks=30, n_crypto=30):
 
     current_time = datetime.now(pytz.timezone("US/Eastern"))
     print(f"Timestamp: {current_time.strftime('%Y-%m-%d %I:%M %p')}")
-
-    api = TradingClient(
-        api_key=os.getenv("API_KEY"),
-        secret_key=os.getenv("SECRET_KEY"),
-        paper=True,
-    )
 
     ##############################
     ##############################
@@ -54,7 +43,7 @@ def main(n_stocks=30, n_crypto=30):
     ### Run Alpaca class
 
     # Instantiate Alpaca class
-    Alpaca_instance = Alpaca(api=api)
+    Alpaca_instance = Alpaca()
 
     # Liquidates currently held assets that meet sell criteria and stores sales in a df
     Alpaca_instance.sell_orders()
