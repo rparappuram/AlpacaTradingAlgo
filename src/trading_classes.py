@@ -19,7 +19,7 @@ class TradingOpportunities:
     def __init__(self, n_stocks=25):
         """
         Description:
-        Grabs top stock losers from YahooFinance! to determine trading opportunities using simple technical trading indicators
+        Grabs stocks from YahooFinance! to determine trading opportunities using simple technical trading indicators
         such as Bollinger Bands and RSI.
 
         Arguments:
@@ -27,7 +27,7 @@ class TradingOpportunities:
 
         Methods:
             • raw_get_daily_info(): Grabs a provided site and transforms HTML to a pandas df
-            • get_trading_opportunities(): Grabs df from raw_get_daily_info() and provides just the top "n" losers declared by user in n_stocks to examine
+            • get_trading_opportunities(): Grabs df from raw_get_daily_info() and provides "n" stocks to examine
             • get_asset_info(): a df can be provided to specify which assets you'd like info for since this method is used in the Alpaca class. If no df argument is passed then tickers from get_trading_opportunities() method are used.
         """
 
@@ -39,7 +39,7 @@ class TradingOpportunities:
         Grabs a provided site and transforms HTML to a pandas df
 
         Argument(s):
-            • site: YahooFinance! top losers website provided in the get_day_losers() function below
+            • site: YahooFinance! website provided in the get_trading_opportunities() function below
 
         Other Notes:
         Commented out the conversion of market cap and volume from string to float since this threw an error.
@@ -59,17 +59,17 @@ class TradingOpportunities:
     def get_trading_opportunities(self):
         """
         Description:
-        Grabs df from raw_get_daily_info() and provides just the top "n" losers declared by user in n_stocks
-
-        Argument(s):
-            • n_stocks: Number of top losers to analyze per YahooFinance! top losers site.
+        Grabs df from raw_get_daily_info() and provides self.n_stocks to examine
         """
-        # Scrape for top stock losers
-        df_stock = self.raw_get_daily_info(
-            "https://finance.yahoo.com/losers?offset=0&count=100"
-        )
-        df_stock["asset_type"] = "stock"
-        df_stock = df_stock.head(self.n_stocks)
+
+        df_stock = pd.DataFrame()
+        PAGES = ["growth_technology_stocks", "day_losers", "most_actives", "undervalued_growth_stocks"]
+        for page in PAGES:
+            df = self.raw_get_daily_info(
+                f"https://finance.yahoo.com/screener/predefined/{page}?offset=0&count=100"
+            )
+            df = df.head(self.n_stocks // len(PAGES))
+            df_stock = df_stock.append(df)
 
         # Create a list of all tickers scraped
         self.all_tickers = list(df_stock["Symbol"])
