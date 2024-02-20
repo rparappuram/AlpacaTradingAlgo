@@ -31,6 +31,8 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: last-run-timestamp
+      continue-on-error: true
+      
     - name: Read TIMESTAMP
       run: |
         if [ -f TIMESTAMP ]; then
