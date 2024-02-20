@@ -280,17 +280,11 @@ class Alpaca:
             "-", ""
         )
         symbols = list(sell_filtered_df["alpaca_symbol"])
-
-        # Determine whether to trade all symbols or only those with "-USD" in their name
-        if self.is_market_open():
-            eligible_symbols = symbols
-        else:
-            eligible_symbols = [symbol for symbol in symbols if "-USD" in symbol]
-
-        # Submit sell orders for eligible symbols
-        print(f"{Fore.YELLOW}Selling: {str(eligible_symbols)}{Style.RESET_ALL}")
+        
+        # Submit sell orders
+        print(f"{Fore.YELLOW}Selling: {str(symbols)}{Style.RESET_ALL}")
         executed_sales = []
-        for symbol in eligible_symbols:
+        for symbol in symbols:
             try:
                 if symbol in symbols:  # Check if the symbol is in the sell_filtered_df
                     qty = df_current_positions[df_current_positions["asset"] == symbol][
