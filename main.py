@@ -12,7 +12,7 @@ from slack import WebClient
 from slack.errors import SlackApiError
 
 
-def main(st_hr_for_message: int = 8, end_hr_for_message: int = 19, n_stocks: int = 25):
+def main(n_stocks: int = 50):
     """
     Description: Uses your Alpaca API credentials (including whether you're paper trading or live trading) and
     sells overbought assets in portfolio then buys oversold assets in the market per YahooFinance! opportunities.

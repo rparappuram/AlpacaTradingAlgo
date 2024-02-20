@@ -378,7 +378,7 @@ class Alpaca:
         executed_buys = []
         for symbol in tickers:
             try:
-                qty = round(available_cash / len(tickers))
+                qty = round(available_cash / len(tickers) / yf.Ticker(symbol).history(period="1d").iloc[-1]["Close"])
                 self.api.submit_order(
                     order_data=OrderRequest(
                         symbol=symbol,
