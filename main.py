@@ -33,7 +33,7 @@ def main(st_hr_for_message: int = 8, end_hr_for_message: int = 19, n_stocks: int
     # Instantiate TradingOpportunities class
     trades = TradingOpportunities(n_stocks=n_stocks)
 
-    # Shows all scraped opportunities; defaults to 25 top losing stocks
+    # Get n_stocks from YahooFinance! and stores in a df
     trades.get_trading_opportunities()
 
     # The all_tickers attribute is a list of all tickers in the get_trading_opportunities() method. Passing this list through the get_asset_info() method shows just the tickers that meet buying criteria

@@ -373,19 +373,12 @@ class Alpaca:
             "market_value"
         ].values[0]
 
-        # Determine whether to trade all symbols or only those with "-USD" in their name
-        market_open = self.is_market_open()
-        if market_open:
-            eligible_symbols = tickers
-        else:
-            eligible_symbols = [symbol for symbol in tickers if "-USD" in symbol]
-
         # Submit buy orders for eligible symbols
-        print(f"{Fore.YELLOW}Buying: {str(eligible_symbols)}{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}Buying: {str(tickers)}{Style.RESET_ALL}")
         executed_buys = []
-        for symbol in eligible_symbols:
+        for symbol in tickers:
             try:
-                qty = round(available_cash / len(eligible_symbols))
+                qty = round(available_cash / len(tickers))
                 self.api.submit_order(
                     order_data=OrderRequest(
                         symbol=symbol,
@@ -404,4 +397,4 @@ class Alpaca:
         executed_buys_df = pd.DataFrame(executed_buys, columns=["ticker", "qty"])
         print(f"{Fore.GREEN}Bought:\n{executed_buys_df}{Style.RESET_ALL}")
 
-        self.tickers_bought = eligible_symbols
+        self.tickers_bought = tickers
