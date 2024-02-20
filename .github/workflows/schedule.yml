@@ -2,16 +2,12 @@ name: Scheduled Run
 
 on:
   schedule:
-    # 10 minutes before pre-market opens (3:50 AM EST -> 8:50 AM UTC)
-    - cron: '50 8 * * *'
-    # 10 minutes before market opens (9:30 AM EST -> 2:20 PM UTC)
-    - cron: '20 14 * * *'
-    # Mid-day check (11:50 AM EST -> 4:50 PM UTC)
-    - cron: '50 16 * * *'
-    # 15 minutes before market closes (3:45 PM EST -> 8:45 PM UTC)
-    - cron: '45 20 * * *'
-    # 10 minutes before post-market closes (7:50 PM EST -> 12:50 AM UTC next day)
-    - cron: '45 0 * * *'
+    # 10 minutes before market opens (9:30 AM EST -> 2:20 PM UTC), Monday to Friday
+    - cron: '20 14 * * 1-5'
+    # Mid-day check (11:50 AM EST -> 4:50 PM UTC), Monday to Friday
+    - cron: '50 16 * * 1-5'
+    # 15 minutes before market closes (3:45 PM EST -> 8:45 PM UTC), Monday to Friday
+    - cron: '45 20 * * 1-5'
   workflow_dispatch:
 
 jobs:
@@ -30,7 +26,19 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt # Assuming you have a requirements.txt file
-
+    
+    - name: Download last-run-timestamp artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: last-run-timestamp
+    - name: Read TIMESTAMP
+      run: |
+        if [ -f TIMESTAMP ]; then
+          export LAST_RUN_TIMESTAMP=$(cat TIMESTAMP)
+        else
+          export LAST_RUN_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ" --date='1 hour ago')
+        fi
+  
     - name: Run the program
       run: python main.py
       env:
@@ -38,3 +46,13 @@ jobs:
         SECRET_KEY: ${{ secrets.SECRET_KEY }}
         SLACK_API: ${{ secrets.SLACK_API }}
         CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+
+    - name: Save current timestamp
+      run: |
+        echo "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" > TIMESTAMP
+    - name: Upload TIMESTAMP as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: last-run-timestamp
+        path: TIMESTAMP
+  

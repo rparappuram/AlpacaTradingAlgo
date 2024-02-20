@@ -4,8 +4,6 @@ from alpaca.trading import TradingClient
 from alpaca.trading.requests import GetOrdersRequest
 from datetime import datetime, timedelta
 
-TIMESTAMP_FILE = "last_run_timestamp.txt"
-
 
 def slack_app_notification(api: TradingClient):
     """
@@ -85,35 +83,25 @@ def slack_app_notification(api: TradingClient):
 
 
 def get_last_run_timestamp():
-    # Check if the timestamp file exists
-    if os.path.exists(TIMESTAMP_FILE):
-        with open(TIMESTAMP_FILE, "r") as file:
-            timestamp_str = file.read().strip()
-            # Parse the timestamp assuming it's in UTC
-            return datetime.fromisoformat(timestamp_str)
+    # Access the environment variable set by the GitHub Actions workflow
+    last_run_timestamp_str = os.getenv('LAST_RUN_TIMESTAMP')
+
+    if last_run_timestamp_str:
+        # If the timestamp is found, parse it to a datetime object
+        return datetime.fromisoformat(last_run_timestamp_str)
     else:
-        # Default to one hour ago in UTC if the file doesn't exist
+        # Default to one hour ago if the environment variable isn't set
         return datetime.utcnow() - timedelta(hours=1)
-
-
-def save_current_timestamp():
-    # Save the current UTC timestamp to the file
-    with open(TIMESTAMP_FILE, "w") as file:
-        # Format the current UTC time as an ISO string
-        file.write(datetime.utcnow().isoformat())
 
 
 def get_trade_history(api):
     last_run_timestamp = get_last_run_timestamp()
 
-    # Retrieve trades since the last run, using the UTC timestamp
+    # Retrieve trades since the last run
     trades = api.get_orders(
         filter=GetOrdersRequest(
             status="closed", after=last_run_timestamp, direction="desc"
         )
     )
-
-    # Update the timestamp file with the current UTC time
-    save_current_timestamp()
 
     return trades
