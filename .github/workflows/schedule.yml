@@ -2,8 +2,8 @@ name: Scheduled Run
 
 on:
   schedule:
-    # Market Open (9:30 AM EST -> 2:30 PM UTC), Monday to Friday
-    - cron: '30 14 * * 1-5'
+    # Market Open (9:45 AM EST -> 2:30 PM UTC), Monday to Friday
+    - cron: '45 14 * * 1-5'
     # Mid-day check (12:00 PM EST -> 5:00 PM UTC), Monday to Friday
     - cron: '0 17 * * 1-5'
     # 15 minutes before market closes (3:45 PM EST -> 8:45 PM UTC), Monday to Friday

@@ -378,23 +378,23 @@ class Alpaca:
         executed_buys = []
         for symbol in tickers:
             try:
-                qty = round(available_cash / len(tickers) / yf.Ticker(symbol).history(period="1d").iloc[-1]["Close"])
+                notional = round(available_cash / len(tickers))
                 self.api.submit_order(
                     order_data=OrderRequest(
                         symbol=symbol,
                         type="market",
-                        notional=qty,
+                        notional=notional,
                         side="buy",
                         time_in_force="day",
                     )
                 )
-                executed_buys.append([symbol, qty])
+                executed_buys.append([symbol, notional])
 
             except APIError as e:
                 print(f"{Fore.RED}{e}{Style.RESET_ALL}")
                 continue
 
-        executed_buys_df = pd.DataFrame(executed_buys, columns=["ticker", "qty"])
+        executed_buys_df = pd.DataFrame(executed_buys, columns=["ticker", "notional"])
         print(f"{Fore.GREEN}Bought:\n{executed_buys_df}{Style.RESET_ALL}")
 
         self.tickers_bought = tickers
