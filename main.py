@@ -62,19 +62,19 @@ def main(n_stocks: int = 50):
     ### Slack notification
 
     # Get orders from the past hour
-    orders = slack_app_notification(api)
+    # orders = slack_app_notification(api)
 
     # Authenticate to the Slack API via the generated token
-    client = WebClient(os.getenv("SLACK_API"))
-    try:
-        response = client.chat_postMessage(
-            channel=os.getenv("CHANNEL_ID"),
-            text=orders,
-            mrkdwn=True,
-        )
-        print("Slack notification sent successfully")
-    except SlackApiError as e:
-        print(f"Error sending Slack notification: {e}")
+    # client = WebClient(os.getenv("SLACK_API"))
+    # try:
+    #     response = client.chat_postMessage(
+    #         channel=os.getenv("CHANNEL_ID"),
+    #         text=orders,
+    #         mrkdwn=True,
+    #     )
+    #     print("Slack notification sent successfully")
+    # except SlackApiError as e:
+    #     print(f"Error sending Slack notification: {e}")
 
 
 if __name__ == "__main__":
