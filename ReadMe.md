@@ -46,14 +46,6 @@ pip install -r requirements.txt
 python main.py
 ```
 
-## CircleCI Integration
-
-To set up the CircleCI integration for automated testing and deployment, follow these steps:
-
-1. Sign up for a CircleCI account if you don't have one already.
-2. Add your GitHub repository to CircleCI.
-3. Push the `.circleci/config.yml` file to your repository. CircleCI will automatically detect the file and start running the specified workflows.
-
 ## Notes
 
 - Make sure to customize the arguments in the `main()` function in `main.py` based on your preferences (e.g., trading hours, number of stocks and cryptocurrencies to consider, etc.).
