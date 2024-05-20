@@ -133,7 +133,6 @@ class SwingStrategy(bt.Strategy):
             self.log("No open positions")
 
 
-
 class BacktestFineTuner:
     def __init__(self):
         self.tickers = [
@@ -351,7 +350,7 @@ class BacktestFineTuner:
         data = yf.download(tickers, start=start_date, interval="1h", progress=False)
         for ticker in tickers:
             df = data.loc[:, (slice(None), ticker)].copy()
-            df.columns = df.columns.droplevel(1) 
+            df.columns = df.columns.droplevel(1)
             feed = bt.feeds.PandasData(dataname=df)
             cerebro.adddata(feed, name=ticker)
         cerebro.addstrategy(
@@ -363,7 +362,7 @@ class BacktestFineTuner:
             reverse=reverse,
             backtesting=True,
         )
-        cerebro.broker.set_cash(1000)
+        cerebro.broker.set_cash(CASH)
         cerebro.run()
         return cerebro.broker.getvalue()
 
@@ -413,8 +412,8 @@ class BacktestFineTuner:
                                         except Exception as e:
                                             print(f"Error: {e}")
                                             continue
-                                        if final_value > 2000 or final_value < 0:
-                                            return
+                                        if final_value > CASH * 20 or final_value < 0:
+                                            exit(1)
                                         # Write results to the CSV file for each iteration
                                         writer.writerow(
                                             {
@@ -449,6 +448,7 @@ class BacktestFineTuner:
         return final_value
 
 
+CASH = 1000
 backtest_finetuner = BacktestFineTuner()
 backtest_finetuner.finetune()
 best_params = backtest_finetuner.get_best_params()
