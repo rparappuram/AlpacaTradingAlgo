@@ -133,11 +133,6 @@ class SwingStrategy(bt.Strategy):
             self.log("No open positions")
 
 
-# Load data
-def get_data(ticker, start, end=None):
-    df = yf.download(ticker, start=start, end=end, interval="1h", progress=False)
-    return bt.feeds.PandasData(dataname=df)
-
 
 class BacktestFineTuner:
     def __init__(self):
@@ -353,9 +348,12 @@ class BacktestFineTuner:
         self, tickers, start_date, rsi_period, rsi_upper, rsi_lower, trail_perc, reverse
     ):
         cerebro = bt.Cerebro()
+        data = yf.download(tickers, start=start_date, interval="1h", progress=False)
         for ticker in tickers:
-            data = get_data(ticker, start=start_date)
-            cerebro.adddata(data, name=ticker)
+            df = data.loc[:, (slice(None), ticker)].copy()
+            df.columns = df.columns.droplevel(1) 
+            feed = bt.feeds.PandasData(dataname=df)
+            cerebro.adddata(feed, name=ticker)
         cerebro.addstrategy(
             SwingStrategy,
             rsi_period=rsi_period,
