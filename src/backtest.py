@@ -8,7 +8,9 @@ import yfinance as yf
 # Define the swing trading strategy
 class SwingStrategy(bt.Strategy):
 
-    def __init__(self, rsi_period=14, rsi_upper=70, rsi_lower=30, trail_perc=0.05, reverse=True):
+    def __init__(
+        self, rsi_period=14, rsi_upper=70, rsi_lower=30, trail_perc=0.05, reverse=True
+    ):
         self.params.rsi_period = rsi_period
         self.params.rsi_upper = rsi_upper
         self.params.rsi_lower = rsi_lower
@@ -79,7 +81,9 @@ class SwingStrategy(bt.Strategy):
             return  # No buying opportunity
 
         # Sort eligible stocks by descending order of price
-        eligible_stocks.sort(key=lambda data: data.close[0], reverse=self.params.reverse)
+        eligible_stocks.sort(
+            key=lambda data: data.close[0], reverse=self.params.reverse
+        )
 
         cash = self.broker.get_cash()
         num_affordable_stocks = len(eligible_stocks)
@@ -301,10 +305,10 @@ class BacktestFineTuner:
             "EXP",
         ]
         self.start_date = [
-            "2023-05-01", # 12 months
-            "2023-12-01", # 6 months
-            "2024-02-01", # 3 months
-            "2024-04-01", # 1 month
+            "2023-05-01",  # 12 months
+            "2023-12-01",  # 6 months
+            "2024-02-01",  # 3 months
+            "2024-04-01",  # 1 month
         ]
         self.rsi_period = [7, 14, 21, 28]
         self.rsi_upper = [60, 65, 70, 75, 80]
@@ -324,7 +328,9 @@ class BacktestFineTuner:
             ]
         )
 
-    def run(self, tickers, start_date, rsi_period, rsi_upper, rsi_lower, trail_perc, reverse):
+    def run(
+        self, tickers, start_date, rsi_period, rsi_upper, rsi_lower, trail_perc, reverse
+    ):
         cerebro = bt.Cerebro()
         for ticker in tickers:
             data = get_data(ticker, start=start_date)
@@ -355,7 +361,7 @@ class BacktestFineTuner:
                 "rsi_upper",
                 "rsi_lower",
                 "trail_perc",
-                "reverse"
+                "reverse",
                 "final_value",
             ]
             writer = csv.DictWriter(file, fieldnames=fieldnames)
