@@ -429,26 +429,13 @@ class BacktestFineTuner:
 
     def get_best_params(self):
         self.results = pd.read_csv("finetune_results.csv")
-        best_params = self.results.loc[self.results["final_value"].idxmax()]
+        best_indices = self.results.groupby("start_date")["final_value"].idxmax()
+        best_params = self.results.loc[best_indices].reset_index(drop=True)
         return best_params
-
-    def run_best_strategy(self):
-        best_params = self.get_best_params()
-        tickers = best_params["tickers"]
-        start_date = best_params["start_date"]
-        rsi_period = best_params["rsi_period"]
-        rsi_upper = best_params["rsi_upper"]
-        rsi_lower = best_params["rsi_lower"]
-        trail_perc = best_params["trail_perc"]
-        reverse = best_params["reverse"]
-        final_value = self.run(
-            tickers, start_date, rsi_period, rsi_upper, rsi_lower, trail_perc, reverse
-        )
-        return final_value
 
 
 CASH = 1000
 backtest_finetuner = BacktestFineTuner()
 backtest_finetuner.finetune()
 best_params = backtest_finetuner.get_best_params()
-best_params
+print(f"BEST PARAMS: {best_params}")
