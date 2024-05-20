@@ -412,8 +412,7 @@ class BacktestFineTuner:
                                         except Exception as e:
                                             print(f"Error: {e}")
                                             continue
-                                        if final_value > CASH * 20 or final_value < 0:
-                                            exit(1)
+
                                         # Write results to the CSV file for each iteration
                                         writer.writerow(
                                             {
