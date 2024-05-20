@@ -8,11 +8,12 @@ import yfinance as yf
 # Define the swing trading strategy
 class SwingStrategy(bt.Strategy):
 
-    def __init__(self, rsi_period=14, rsi_upper=70, rsi_lower=30, trail_perc=0.05):
+    def __init__(self, rsi_period=14, rsi_upper=70, rsi_lower=30, trail_perc=0.05, reverse=True):
         self.params.rsi_period = rsi_period
         self.params.rsi_upper = rsi_upper
         self.params.rsi_lower = rsi_lower
         self.params.trail_perc = trail_perc
+        self.params.reverse = reverse
         self.rsi = {
             data: bt.indicators.RSI(data, period=self.params.rsi_period)
             for data in self.datas
@@ -78,7 +79,7 @@ class SwingStrategy(bt.Strategy):
             return  # No buying opportunity
 
         # Sort eligible stocks by descending order of price
-        eligible_stocks.sort(key=lambda data: data.close[0], reverse=True)
+        eligible_stocks.sort(key=lambda data: data.close[0], reverse=self.params.reverse)
 
         cash = self.broker.get_cash()
         num_affordable_stocks = len(eligible_stocks)
@@ -300,16 +301,16 @@ class BacktestFineTuner:
             "EXP",
         ]
         self.start_date = [
-            "2023-06-01",
-            "2024-01-01",
-            "2024-02-01",
-            "2024-03-01",
-            "2024-04-01",
+            "2023-05-01", # 12 months
+            "2023-12-01", # 6 months
+            "2024-02-01", # 3 months
+            "2024-04-01", # 1 month
         ]
         self.rsi_period = [7, 14, 21, 28]
         self.rsi_upper = [60, 65, 70, 75, 80]
         self.rsi_lower = [20, 25, 30, 35, 40]
         self.trail_perc = [0.01, 0.02, 0.03, 0.04, 0.05, 0.6, 0.07, 0.08, 0.09, 0.1]
+        self.reverse = [True, False]
         self.results = pd.DataFrame(
             columns=[
                 "tickers",
@@ -318,11 +319,12 @@ class BacktestFineTuner:
                 "rsi_upper",
                 "rsi_lower",
                 "trail_perc",
+                "reverse",
                 "final_value",
             ]
         )
 
-    def run(self, tickers, start_date, rsi_period, rsi_upper, rsi_lower, trail_perc):
+    def run(self, tickers, start_date, rsi_period, rsi_upper, rsi_lower, trail_perc, reverse):
         cerebro = bt.Cerebro()
         for ticker in tickers:
             data = get_data(ticker, start=start_date)
@@ -333,6 +335,7 @@ class BacktestFineTuner:
             rsi_upper=rsi_upper,
             rsi_lower=rsi_lower,
             trail_perc=trail_perc,
+            reverse=reverse,
         )
         cerebro.broker.set_cash(1000)
         cerebro.run()
@@ -352,6 +355,7 @@ class BacktestFineTuner:
                 "rsi_upper",
                 "rsi_lower",
                 "trail_perc",
+                "reverse"
                 "final_value",
             ]
             writer = csv.DictWriter(file, fieldnames=fieldnames)
@@ -361,39 +365,44 @@ class BacktestFineTuner:
                 writer.writeheader()
 
             tickers = []
-            for i in range(0, len(self.tickers), 2):
-                for j in range(2):
-                    tickers.append(self.tickers[i + j])
+            step = 4
+            for i in range(0, len(self.tickers), step):
+                for j in range(0, step):
+                    if i + j < len(self.tickers):
+                        tickers.append(self.tickers[i + j])
                 for start_date in self.start_date:
                     for rsi_period in self.rsi_period:
                         for rsi_upper in self.rsi_upper:
                             for rsi_lower in self.rsi_lower:
                                 for trail_perc in self.trail_perc:
-                                    print(
-                                        f"Tickers: {tickers}\nStart Date: {start_date}\nRSI Period: {rsi_period}\nRSI Upper: {rsi_upper}\nRSI Lower: {rsi_lower}\nTrail Perc: {trail_perc}"
-                                    )
-                                    final_value = self.run(
-                                        tickers,
-                                        start_date,
-                                        rsi_period,
-                                        rsi_upper,
-                                        rsi_lower,
-                                        trail_perc,
-                                    )
-                                    if final_value > 2000 or final_value < 0:
-                                        return
-                                    # Write results to the CSV file for each iteration
-                                    writer.writerow(
-                                        {
-                                            "tickers": tickers,
-                                            "start_date": start_date,
-                                            "rsi_period": rsi_period,
-                                            "rsi_upper": rsi_upper,
-                                            "rsi_lower": rsi_lower,
-                                            "trail_perc": trail_perc,
-                                            "final_value": final_value,
-                                        }
-                                    )
+                                    for reverse in self.reverse:
+                                        print(
+                                            f"Tickers: {tickers}\nStart Date: {start_date}\nRSI Period: {rsi_period}\nRSI Upper: {rsi_upper}\nRSI Lower: {rsi_lower}\nTrail Perc: {trail_perc}\nReverse: {reverse}"
+                                        )
+                                        final_value = self.run(
+                                            tickers,
+                                            start_date,
+                                            rsi_period,
+                                            rsi_upper,
+                                            rsi_lower,
+                                            trail_perc,
+                                            reverse,
+                                        )
+                                        if final_value > 2000 or final_value < 0:
+                                            return
+                                        # Write results to the CSV file for each iteration
+                                        writer.writerow(
+                                            {
+                                                "tickers": tickers,
+                                                "start_date": start_date,
+                                                "rsi_period": rsi_period,
+                                                "rsi_upper": rsi_upper,
+                                                "rsi_lower": rsi_lower,
+                                                "trail_perc": trail_perc,
+                                                "reverse": reverse,
+                                                "final_value": final_value,
+                                            }
+                                        )
 
     def get_best_params(self):
         self.results = pd.read_csv("finetune_results.csv")
@@ -408,8 +417,9 @@ class BacktestFineTuner:
         rsi_upper = best_params["rsi_upper"]
         rsi_lower = best_params["rsi_lower"]
         trail_perc = best_params["trail_perc"]
+        reverse = best_params["reverse"]
         final_value = self.run(
-            tickers, start_date, rsi_period, rsi_upper, rsi_lower, trail_perc
+            tickers, start_date, rsi_period, rsi_upper, rsi_lower, trail_perc, reverse
         )
         return final_value
 
