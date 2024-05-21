@@ -6,18 +6,16 @@ class SwingStrategy(bt.Strategy):
 
     def __init__(
         self,
-        rsi_period=14,
-        rsi_upper=70,
-        rsi_lower=30,
-        trail_perc=0.05,
-        reverse=True,
-        backtesting=False,
+        rsi_period,
+        rsi_upper,
+        rsi_lower,
+        trail_perc,
+        backtesting,
     ):
         self.params.rsi_period = rsi_period
         self.params.rsi_upper = rsi_upper
         self.params.rsi_lower = rsi_lower
         self.params.trail_perc = trail_perc
-        self.params.reverse = reverse
         self.params.backtesting = backtesting
         self.rsi = {
             data: bt.indicators.RSI(data, period=self.params.rsi_period)
@@ -83,13 +81,6 @@ class SwingStrategy(bt.Strategy):
         ]
         if not eligible_stocks:
             return  # No buying opportunity
-
-        if self.params.reverse is None:
-            random.shuffle(eligible_stocks)
-        else:
-            eligible_stocks.sort(
-                key=lambda data: data.close[0], reverse=self.params.reverse
-            )
 
         cash = self.broker.get_cash()
         num_affordable_stocks = len(eligible_stocks)

@@ -14,6 +14,26 @@ class BacktestFineTuner:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def run(self, **kwargs):
+        cerebro = bt.Cerebro()
+        tickers = kwargs.pop("tickers")
+        data = yf.download(
+            tickers,
+            start=START_DATE,
+            interval="1h",
+            progress=False,
+        )
+        # add data to cerebro
+        for ticker in tickers:
+            df = data.loc[:, (slice(None), ticker)].copy()
+            df.columns = df.columns.droplevel(1)
+            feed = bt.feeds.PandasData(dataname=df)
+            cerebro.adddata(feed, name=ticker)
+        cerebro.broker.set_cash(CASH)
+        cerebro.addstrategy(SwingStrategy, **kwargs)
+        cerebro.run()
+        cerebro.plot()
+
     def finetune(self):
         csv_file_path = "finetune_results.csv"
         file_exists = os.path.isfile(csv_file_path)
@@ -65,30 +85,26 @@ class BacktestFineTuner:
                     else:
                         raise e
 
-    def get_best_params(self):
-        results = pd.read_csv("finetune_results.csv")
-        best_params = results.loc[results["final_value"].idxmax()]
-        return best_params
-
 
 CASH = 1000
 START_DATE = "2023-12-01"  # 6 months
 backtest_finetuner = BacktestFineTuner(
     tickers=[
+        "ROIV TAL HBAN KEY KMI RF CVE JWN BZ AEO".split(),
+        "ROIV TAL HBAN KEY KMI RF CVE JWN BZ AEO FTI IBN PPL FLEX ATMU GLW CFG FITB BAC RRC".split(),
+        "SM CVE NTRS EWBC WDC CPRT ALK EQH DVA BZ".split(),
+        "JWN MPLX SHEL PEG DOV CVE KBR COF TTE GNRC".split(),
+        "PNR TAL DOCU DVA KKR PSTG SHEL WELL ALK MPLX".split(),
+        "PHM WMB CHD RTX BJ IBN TSM CMA XOM TFC AEP ETR PYPL FITB CCEP AER PEG ZION PNR MTB".split(),
+        "APO TSN TRGP RY JCI NVT BAC CNM EWBC BAH PHM PFG TTE ACGL ATMU CCEP BZ STX SNX CFG".split(),
+        "AEM STX CBOE IBKR TSM CTVA BJ CPRT AZN NBIX SNX ETR TTE DKS GOOG MPLX PPL SM PSTG DOCU".split(),
+        "AMZN GOOGL BAC DELL GOOG TSM LLY XOM PANW WFC".split(),
+        "AMZN GOOGL BAC DELL GOOG TSM LLY XOM PANW WFC MRK PG TXN BKNG C PYPL RTX CMG FCX MS".split(),
         "AMZN GOOGL BAC DELL GOOG TSM LLY XOM PANW WFC MRK PG TXN BKNG C PYPL RTX CMG FCX MS ETN GM AXP SPOT".split(),
-        "ADI KLAC PGR MMM SCHW DAL ELV WDC MCHP BSX AZN SWAV APH RCL DVN CL TFC COF SO DPZ KKR LEN AEP JCI KMB PH SHEL FANG PNC D GD ALL TSCO MCO".split(),
-        "STX ECL CPRT FERG DLR WMB DKS CNQ CTAS WELL KMI APO LHX PWR HBAN AEM MSI NDAQ CVE PEG TECK AMP PHM KEY TCOM BK K CSGP PSTG CFG DFS FITB DOV TRGP ED".split(),
-        "CTVA AXON GPC ACGL PRU CMS VLTO CHK SCCO RF ETR MTB TSN OMC GLW GNRC CBOE ARES DOCU AER AVB ALLY IBN FCNCA ATMU LPLA NTRS EIX CNM".split(),
-        "PNR EQR PPL BJ BALL RJF CHD ZION NBIX SNX FTI CSL FLEX RY AEO OC IBKR CMA DVA EQH EMN NVT HAS CCEP ALK MEDP CASY".split(),
-        "ESS PFG TTE WFRD AVY EWBC TAL SHAK SM WIRE JWN MPLX RRC ROIV KBR BAH AIT AN BZ HEI EXP".split(),
     ],
     rsi_period=[14, 21, 28],
-    rsi_upper=[60, 65, 70, 75, 80],
-    rsi_lower=[20, 25, 30, 35, 40],
-    trail_perc=[0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.15, 0.2, 0.25],
-    reverse=[True, False, None],
+    rsi_upper=[70, 75, 80],
+    rsi_lower=[25, 30, 35],
+    trail_perc=[0.03, 0.05, 0.06, 0.08, 0.1],
 )
 backtest_finetuner.finetune()
-# best_params = backtest_finetuner.get_best_params()
-# print(best_params)
-# backtest_finetuner.run_and_plot(**best_params)
