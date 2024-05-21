@@ -7,6 +7,7 @@ import pandas as pd
 import yfinance as yf
 
 from strategy import SwingStrategy
+from config import *
 
 
 class BacktestFineTuner:
@@ -16,15 +17,14 @@ class BacktestFineTuner:
 
     def run(self, **kwargs):
         cerebro = bt.Cerebro()
-        tickers = kwargs.pop("tickers")
         data = yf.download(
-            tickers,
+            TICKERS,
             start=START_DATE,
             interval="1h",
             progress=False,
         )
         # add data to cerebro
-        for ticker in tickers:
+        for ticker in TICKERS:
             df = data.loc[:, (slice(None), ticker)].copy()
             df.columns = df.columns.droplevel(1)
             feed = bt.feeds.PandasData(dataname=df)
@@ -49,20 +49,34 @@ class BacktestFineTuner:
                 writer.writeheader()
 
             for combination in itertools.product(*list_attrs.values()):
+                # skip if combination is already in csv and has final_value != nan
+                # check if combination is already in csv
+                skip = False
+                with open(csv_file_path, mode="r") as file:
+                    reader = csv.DictReader(file)
+                    for row in reader:
+                        if all(
+                            str(row[key]) == str(value)
+                            for key, value in zip(fieldnames[:-1], combination)
+                        ):
+                            skip = True
+                            break
+                if skip:
+                    continue
+
                 # print parameters for this run
                 for key, value in zip(fieldnames, combination):
                     print(f"{key} = {value}")
 
                 cerebro = bt.Cerebro()
-                tickers = combination[0]
                 data = yf.download(
-                    tickers,
+                    TICKERS,
                     start=START_DATE,
                     interval="1h",
                     progress=False,
                 )
                 # add data to cerebro
-                for ticker in tickers:
+                for ticker in TICKERS:
                     df = data.loc[:, (slice(None), ticker)].copy()
                     df.columns = df.columns.droplevel(1)
                     feed = bt.feeds.PandasData(dataname=df)
@@ -85,26 +99,30 @@ class BacktestFineTuner:
                     else:
                         raise e
 
+    def analyze_parameters(self):
+        df = pd.read_csv("finetune_results.csv")
+        parameters_analysis = {}
+        for parameter in df.columns[:-1]:
+            results = df.groupby(parameter)["final_value"].mean()
+            results = results.sort_values(ascending=False)
+            parameters_analysis[parameter] = results
+            print(results)
+        return parameters_analysis
 
-CASH = 1000
-START_DATE = "2023-12-01"  # 6 months
+
 backtest_finetuner = BacktestFineTuner(
-    tickers=[
-        "ROIV TAL HBAN KEY KMI RF CVE JWN BZ AEO".split(),
-        "ROIV TAL HBAN KEY KMI RF CVE JWN BZ AEO FTI IBN PPL FLEX ATMU GLW CFG FITB BAC RRC".split(),
-        "SM CVE NTRS EWBC WDC CPRT ALK EQH DVA BZ".split(),
-        "JWN MPLX SHEL PEG DOV CVE KBR COF TTE GNRC".split(),
-        "PNR TAL DOCU DVA KKR PSTG SHEL WELL ALK MPLX".split(),
-        "PHM WMB CHD RTX BJ IBN TSM CMA XOM TFC AEP ETR PYPL FITB CCEP AER PEG ZION PNR MTB".split(),
-        "APO TSN TRGP RY JCI NVT BAC CNM EWBC BAH PHM PFG TTE ACGL ATMU CCEP BZ STX SNX CFG".split(),
-        "AEM STX CBOE IBKR TSM CTVA BJ CPRT AZN NBIX SNX ETR TTE DKS GOOG MPLX PPL SM PSTG DOCU".split(),
-        "AMZN GOOGL BAC DELL GOOG TSM LLY XOM PANW WFC".split(),
-        "AMZN GOOGL BAC DELL GOOG TSM LLY XOM PANW WFC MRK PG TXN BKNG C PYPL RTX CMG FCX MS".split(),
-        "AMZN GOOGL BAC DELL GOOG TSM LLY XOM PANW WFC MRK PG TXN BKNG C PYPL RTX CMG FCX MS ETN GM AXP SPOT".split(),
-    ],
     rsi_period=[14, 21, 28],
     rsi_upper=[70, 75, 80],
     rsi_lower=[25, 30, 35],
     trail_perc=[0.03, 0.05, 0.06, 0.08, 0.1],
+    order=["asc", "desc", "random"],
 )
-backtest_finetuner.finetune()
+# backtest_finetuner.finetune()
+# backtest_finetuner.analyze_parameters()
+
+# backtest_finetuner.run(
+#     rsi_period=14,
+#     rsi_upper=70,
+#     rsi_lower=30,
+#     trail_perc=0.1,
+# )

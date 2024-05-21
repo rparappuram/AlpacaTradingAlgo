@@ -1,22 +1,18 @@
 import random
 import backtrader as bt
 
+from config import *
+
 
 class SwingStrategy(bt.Strategy):
 
-    def __init__(
-        self,
-        rsi_period,
-        rsi_upper,
-        rsi_lower,
-        trail_perc,
-        backtesting,
-    ):
-        self.params.rsi_period = rsi_period
-        self.params.rsi_upper = rsi_upper
-        self.params.rsi_lower = rsi_lower
-        self.params.trail_perc = trail_perc
-        self.params.backtesting = backtesting
+    def __init__(self, **kwargs):
+        self.params.rsi_period = kwargs.get("rsi_period", RSI_PERIOD)
+        self.params.rsi_upper = kwargs.get("rsi_upper", RSI_UPPER)
+        self.params.rsi_lower = kwargs.get("rsi_lower", RSI_LOWER)
+        self.params.trail_perc = kwargs.get("trail_perc", TRAIL_PERC)
+        self.params.backtesting = kwargs.get("backtesting", False)
+        self.params.order = kwargs.get("order", ORDER)
         self.rsi = {
             data: bt.indicators.RSI(data, period=self.params.rsi_period)
             for data in self.datas
@@ -81,6 +77,15 @@ class SwingStrategy(bt.Strategy):
         ]
         if not eligible_stocks:
             return  # No buying opportunity
+
+        if self.params.order == "asc":
+            eligible_stocks = sorted(eligible_stocks, key=lambda x: x.close[0])
+        elif self.params.order == "desc":
+            eligible_stocks = sorted(
+                eligible_stocks, key=lambda x: x.close[0], reverse=True
+            )
+        elif self.params.order == "random":
+            random.shuffle(eligible_stocks)
 
         cash = self.broker.get_cash()
         num_affordable_stocks = len(eligible_stocks)
