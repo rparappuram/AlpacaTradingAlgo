@@ -123,9 +123,8 @@ class BacktestFineTuner:
 
 
 backtest_finetuner = BacktestFineTuner(
-    rsi_upper=[70, 75],
-    rsi_lower=[25, 30, 35],
-    trail_perc=[0.03, 0.05, 0.06, 0.08, 0.1],
+    rsi_lower=[25, 30],
+    trail_perc=[0.03, 0.06, 0.1],
 )
 backtest_finetuner.finetune()
 backtest_finetuner.analyze_parameters()
