@@ -63,7 +63,12 @@ class TradingOpportunities:
         """
 
         df_stock = pd.DataFrame()
-        PAGES = ["growth_technology_stocks", "day_losers", "most_actives", "undervalued_growth_stocks"]
+        PAGES = [
+            "growth_technology_stocks",
+            "day_losers",
+            "most_actives",
+            "undervalued_growth_stocks",
+        ]
         for page in PAGES:
             df = self.raw_get_daily_info(
                 f"https://finance.yahoo.com/screener/predefined/{page}?offset=0&count=100"
@@ -280,7 +285,7 @@ class Alpaca:
             "-", ""
         )
         symbols = list(sell_filtered_df["alpaca_symbol"])
-        
+
         # Submit sell orders
         print(f"{Fore.YELLOW}Selling: {str(symbols)}{Style.RESET_ALL}")
         executed_sales = []

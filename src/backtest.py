@@ -102,6 +102,10 @@ class BacktestFineTuner:
     def analyze_parameters(self):
         df = pd.read_csv("finetune_results.csv")
         parameters_analysis = {}
+        # get params from row with max final_value
+        max_final_value = df["final_value"].max()
+        max_final_value_row = df[df["final_value"] == max_final_value]
+        print(max_final_value_row)
         for parameter in df.columns[:-1]:
             results = df.groupby(parameter)["final_value"].mean()
             results = results.sort_values(ascending=False)
@@ -115,14 +119,6 @@ backtest_finetuner = BacktestFineTuner(
     rsi_upper=[70, 75, 80],
     rsi_lower=[25, 30, 35],
     trail_perc=[0.03, 0.05, 0.06, 0.08, 0.1],
-    order=["asc", "desc", "random"],
 )
-# backtest_finetuner.finetune()
-# backtest_finetuner.analyze_parameters()
-
-# backtest_finetuner.run(
-#     rsi_period=14,
-#     rsi_upper=70,
-#     rsi_lower=30,
-#     trail_perc=0.1,
-# )
+backtest_finetuner.finetune()
+backtest_finetuner.analyze_parameters()

@@ -84,7 +84,7 @@ def slack_app_notification(api: TradingClient):
 
 def get_last_run_timestamp():
     # Access the environment variable set by the GitHub Actions workflow
-    last_run_timestamp_str = os.getenv('LAST_RUN_TIMESTAMP')
+    last_run_timestamp_str = os.getenv("LAST_RUN_TIMESTAMP")
 
     if last_run_timestamp_str:
         # If the timestamp is found, parse it to a datetime object
