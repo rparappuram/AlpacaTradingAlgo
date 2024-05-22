@@ -123,4 +123,4 @@ class BacktestFineTuner:
 
 
 backtest_finetuner = BacktestFineTuner()
-backtest_finetuner.finetune()
+backtest_finetuner.run()
