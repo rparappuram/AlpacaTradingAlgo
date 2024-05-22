@@ -122,9 +122,5 @@ class BacktestFineTuner:
         return parameters_analysis
 
 
-backtest_finetuner = BacktestFineTuner(
-    rsi_lower=[25, 30],
-    trail_perc=[0.03, 0.06, 0.1],
-)
+backtest_finetuner = BacktestFineTuner()
 backtest_finetuner.finetune()
-backtest_finetuner.analyze_parameters()
