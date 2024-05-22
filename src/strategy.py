@@ -105,9 +105,7 @@ class SwingStrategy(bt.Strategy):
                 self.order_reasons[trail_order.ref] = "Trailing Stop"
 
     def stop(self):
-        print(
-            f"{self.datas[0].datetime.date(0)} - Final Portfolio Value: ${self.broker.getvalue():.2f}"
-        )
+        self.log(f"Final Portfolio Value: ${self.broker.getvalue():.2f}")
         open_positions = [data for data in self.datas if self.getposition(data).size]
         if open_positions:
             self.log(
