@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from alpaca.trading import TradingClient
 from alpaca.trading.requests import (
     OrderRequest,
     TrailingStopOrderRequest,
@@ -100,7 +99,7 @@ def sell_stocks():
     positions = trade_client.get_all_positions()
     for position in positions:
         symbol = position.symbol
-        qty = position.qty
+        qty = float(position.qty)
         bars = get_historical_data(
             symbol,
             datetime.datetime.now() - datetime.timedelta(days=RSI_PERIOD),
@@ -132,13 +131,13 @@ def place_trailing_stop():
     positions = trade_client.get_all_positions()
     for position in positions:
         symbol = position.symbol
-        qty = position.qty
+        qty = float(position.qty)
         filter = GetOrdersRequest(symbol=symbol, status="open")
         existing_orders = trade_client.get_orders(filter=filter)
 
         # Check if there is already a trailing stop order for all quantities
         trailing_stop_order_qty = sum(
-            order.qty
+            float(order.qty)
             for order in existing_orders
             if order.type == OrderType.TRAILING_STOP
         )
