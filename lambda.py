@@ -47,13 +47,18 @@ def lambda_handler(event, context):
     """
     Lambda handler function
     """
-    sell_stocks()
-    place_trailing_stop()
-    buy_stocks()
+    clock = trade_client.get_clock()
+    if clock.is_open:
+        sell_stocks()
+        place_trailing_stop()
+        buy_stocks()
+        message = "Trading strategy executed successfully"
+    else:
+        message = "Market is closed"
 
     return {
         "statusCode": 200,
-        "body": "Trading strategy executed successfully",
+        "body": message,
     }
 
 
