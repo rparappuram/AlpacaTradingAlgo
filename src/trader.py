@@ -6,28 +6,24 @@ from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, TradeEvent
 from alpaca.data.historical import StockHistoricalDataClient as dataapi
 from alpaca.data.requests import (
     StockBarsRequest,
-)  # Example: StockBarsRequest(symbol_or_symbols=symbol, timeframe=TimeFrame.Day, start=..., end=...)
+)
 from alpaca.data.timeframe import TimeFrame
 import datetime
 import numpy as np
-import os
-from dotenv import load_dotenv
 import pandas as pd
-
-load_dotenv()
 
 
 class StockTrader:
     def __init__(
-        self, api_key: str, secret_key: str, stock_list: list, paper: bool = True
+        self,
+        api_key: str,
+        secret_key: str,
+        stock_list: list,
+        paper: bool = True,
     ):
         self.trade_api = tradeapi(api_key=api_key, secret_key=secret_key, paper=paper)
         self.data_api = dataapi(api_key=api_key, secret_key=secret_key)
         self.stock_list = stock_list
-        self.trading_stream = streamapi(
-            api_key=api_key, secret_key=secret_key, paper=paper
-        )
-        self.trading_stream.subscribe_trade_updates(self.update_handler)
 
     def get_historical_data(
         self, symbol: str, start_date: datetime.datetime, end_date: datetime.datetime
@@ -40,9 +36,6 @@ class StockTrader:
         )
         bars = self.data_api.get_stock_bars(request_params)
         return bars  # Returns a df
-
-    def calculate_moving_average(self, prices, window):
-        return prices.rolling(window=window).mean()
 
     def buy_stocks(self):
         account = self.trade_api.get_account()
@@ -114,181 +107,6 @@ class StockTrader:
 
 
 def main():
-    API_KEY = os.getenv("API_KEY")
-    SECRET_KEY = os.getenv("SECRET_KEY")
-    STOCK_LIST = [
-        "AMZN",
-        "GOOGL",
-        "GOOG",
-        "TSM",
-        "LLY",
-        "XOM",
-        "PANW",
-        "BAC",
-        "DELL",
-        "WFC",
-        "MRK",
-        "PG",
-        "TXN",
-        "BKNG",
-        "C",
-        "PYPL",
-        "RTX",
-        "CMG",
-        "FCX",
-        "MS",
-        "ETN",
-        "GM",
-        "AXP",
-        "SPOT",
-        "ADI",
-        "KLAC",
-        "PGR",
-        "MMM",
-        "SCHW",
-        "DAL",
-        "ELV",
-        "WDC",
-        "MCHP",
-        "BSX",
-        "AZN",
-        "SWAV",
-        "APH",
-        "RCL",
-        "DVN",
-        "CL",
-        "TFC",
-        "COF",
-        "SO",
-        "DPZ",
-        "KKR",
-        "LEN",
-        "AEP",
-        "JCI",
-        "KMB",
-        "PH",
-        "SHEL",
-        "FANG",
-        "PNC",
-        "D",
-        "GD",
-        "ALL",
-        "TSCO",
-        "MCO",
-        "STX",
-        "ECL",
-        "CPRT",
-        "FERG",
-        "DLR",
-        "WMB",
-        "DKS",
-        "CNQ",
-        "CTAS",
-        "WELL",
-        "KMI",
-        "APO",
-        "LHX",
-        "PWR",
-        "HBAN",
-        "AEM",
-        "MSI",
-        "NDAQ",
-        "CVE",
-        "PEG",
-        "TECK",
-        "AMP",
-        "PHM",
-        "KEY",
-        "TCOM",
-        "BK",
-        "K",
-        "CSGP",
-        "PSTG",
-        "CFG",
-        "DFS",
-        "FITB",
-        "DOV",
-        "TRGP",
-        "ED",
-        "CTVA",
-        "AXON",
-        "GPC",
-        "ACGL",
-        "PRU",
-        "CMS",
-        "VLTO",
-        "CHK",
-        "SCCO",
-        "RF",
-        "ETR",
-        "MTB",
-        "TSN",
-        "OMC",
-        "GLW",
-        "GNRC",
-        "CBOE",
-        "ARES",
-        "DOCU",
-        "AER",
-        "AVB",
-        "ALLY",
-        "IBN",
-        "FCNCA",
-        "ATMU",
-        "LPLA",
-        "NTRS",
-        "EIX",
-        "CNM",
-        "PNR",
-        "EQR",
-        "PPL",
-        "BJ",
-        "BALL",
-        "RJF",
-        "CHD",
-        "ZION",
-        "NBIX",
-        "SNX",
-        "FTI",
-        "CSL",
-        "FLEX",
-        "RY",
-        "AEO",
-        "OC",
-        "IBKR",
-        "CMA",
-        "DVA",
-        "EQH",
-        "EMN",
-        "NVT",
-        "HAS",
-        "CCEP",
-        "ALK",
-        "MEDP",
-        "CASY",
-        "ESS",
-        "PFG",
-        "TTE",
-        "WFRD",
-        "AVY",
-        "EWBC",
-        "TAL",
-        "SHAK",
-        "SM",
-        "WIRE",
-        "JWN",
-        "MPLX",
-        "RRC",
-        "ROIV",
-        "KBR",
-        "BAH",
-        "AIT",
-        "AN",
-        "BZ",
-        "HEI",
-        "EXP",
-    ]
-
     trader = StockTrader(API_KEY, SECRET_KEY, STOCK_LIST, paper=True)
     trader.buy_stocks()
     # trader.start_trading_stream()
