@@ -38,6 +38,7 @@ STOCKS = "AMZN GOOGL BAC DELL GOOG TSM LLY XOM PANW WFC ETN GM AXP SPOT ROIV TAL
 
 # RSI parameters
 RSI_PERIOD = 14
+DATA_RETRIEVAL_PERIOD = RSI_PERIOD + 7
 RSI_UPPER_BOUND = 70
 RSI_LOWER_BOUND = 25
 TRAIL_PERCENT = 6
@@ -82,7 +83,7 @@ def get_historical_data(
     """
     request_params = StockBarsRequest(
         symbol_or_symbols=symbol,
-        timeframe=TimeFrame.Hour,
+        timeframe=TimeFrame.Day,
         start=start_date,
         end=end_date,
     )
@@ -165,7 +166,7 @@ def buy_stocks():
     for stock in STOCKS:
         bars = get_historical_data(
             stock,
-            datetime.datetime.now() - datetime.timedelta(days=RSI_PERIOD),
+            datetime.datetime.now() - datetime.timedelta(days=DATA_RETRIEVAL_PERIOD),
             datetime.datetime.now(),
         )
         prices = bars.df["close"]
@@ -178,6 +179,10 @@ def buy_stocks():
     account = trade_client.get_account()
     available_cash = float(account.cash)
     num_eligible_stocks = len(eligible_stocks)
+    if num_eligible_stocks == 0:
+        print("No stocks to buy")
+        return
+    
     for stock in eligible_stocks:
         # Get current price
         bars = get_historical_data(
