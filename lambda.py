@@ -1,5 +1,6 @@
-import datetime
 import os
+import json
+import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -58,7 +59,7 @@ def lambda_handler(event, context):
 
     return {
         "statusCode": 200,
-        "body": message,
+        "body": json.dumps(message),
     }
 
 
