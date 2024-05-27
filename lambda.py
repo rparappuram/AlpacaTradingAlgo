@@ -38,7 +38,7 @@ STOCKS = "AMZN GOOGL BAC DELL GOOG TSM LLY XOM PANW WFC ETN GM AXP SPOT ROIV TAL
 
 # RSI parameters
 RSI_PERIOD = 14
-DATA_RETRIEVAL_PERIOD = RSI_PERIOD + 7
+DATA_RETRIEVAL_PERIOD = 7
 RSI_UPPER_BOUND = 70
 RSI_LOWER_BOUND = 25
 TRAIL_PERCENT = 6
@@ -95,7 +95,7 @@ def sell_stocks():
     """
     Sell stocks based on the RSI indicator
     """
-    print("\nSelling stocks")
+    print("Selling stocks")
     # Check all open positions
     positions = trade_client.get_all_positions()
     for position in positions:
@@ -127,7 +127,7 @@ def place_trailing_stop():
     """
     Place a sell trailing stop order for all open positions
     """
-    print("\nPlacing trailing stop orders")
+    print("Placing trailing stop orders")
     # Check all open positions
     positions = trade_client.get_all_positions()
     for position in positions:
@@ -160,13 +160,14 @@ def buy_stocks():
     """
     Buy stocks based on the RSI indicator
     """
-    print("\nBuying stocks")
+    print("Buying stocks")
     # Check stocks to buy
     eligible_stocks = []
     for stock in STOCKS:
         bars = get_historical_data(
             stock,
-            datetime.datetime.now() - datetime.timedelta(days=DATA_RETRIEVAL_PERIOD),
+            datetime.datetime.now()
+            - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
             datetime.datetime.now(),
         )
         prices = bars.df["close"]
@@ -182,12 +183,12 @@ def buy_stocks():
     if num_eligible_stocks == 0:
         print("No stocks to buy")
         return
-    
+
     for stock in eligible_stocks:
         # Get current price
         bars = get_historical_data(
             stock,
-            datetime.datetime.now() - datetime.timedelta(days=1),
+            datetime.datetime.now() - datetime.timedelta(days=DATA_RETRIEVAL_PERIOD),
             datetime.datetime.now(),
         )
         current_price = bars.df["close"].iloc[-1]
