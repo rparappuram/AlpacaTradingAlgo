@@ -21,26 +21,26 @@ phases:
     commands:
       - echo Building lambda-function.zip...
       - zip lambda-function.zip lambda_function.py
-      - if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
+      - 'if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
           echo Installing dependencies for Lambda Layer...
           mkdir -p package/python
-          "pip install --platform manylinux2014_aarch64 --target=package/python --implementation cp --python-version 3.11 --only-binary=:all: --upgrade -r requirements.txt"
+          pip install --platform manylinux2014_aarch64 --target=package/python --implementation cp --python-version 3.11 --only-binary=:all: --upgrade -r requirements.txt
           echo Building lambda-layer.zip...
           cd package
           zip -r ../lambda-layer.zip .
-        fi
+        fi'
 
   post_build:
     commands:
       - echo Uploading lambda-function.zip to S3...
       - aws s3 cp lambda-function.zip s3://alpaca-trading-algo/lambda-function.zip
-      - if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
+      - 'if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
           echo Uploading lambda-layer.zip to S3...
           aws s3 cp lambda-layer.zip s3://alpaca-trading-algo/lambda-layer.zip
           echo Updating Lambda Layer...
-          LAYER_VERSION_ARN=$(aws lambda publish-layer-version --layer-name dependencies --description "Dependencies Layer" --content S3Bucket=alpaca-trading-algo,S3Key=lambda-layer.zip --compatible-runtimes python3.11 | jq -r '.LayerVersionArn')
+          LAYER_VERSION_ARN=$(aws lambda publish-layer-version --layer-name dependencies --description "Dependencies Layer" --content S3Bucket=alpaca-trading-algo,S3Key=lambda-layer.zip --compatible-runtimes python3.11 | jq -r ".LayerVersionArn")
           echo "New Layer Version ARN: $LAYER_VERSION_ARN"
-        fi
+        fi'
       - echo Updating Lambda Function...
       - aws lambda update-function-code --function-name AlpacaTradingAlgo --s3-bucket alpaca-trading-algo --s3-key lambda-function.zip
       - if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
