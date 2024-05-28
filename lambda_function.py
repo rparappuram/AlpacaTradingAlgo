@@ -60,7 +60,7 @@ def lambda_handler(event, context):
     return {
         "statusCode": 200,
         "body": json.dumps(message),
-    }
+    }d
 
 
 def calculate_rsi(prices: pd.Series) -> float:
