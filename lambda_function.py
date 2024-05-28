@@ -1,4 +1,3 @@
-# testing CI/CD pipeline
 import os
 import json
 import datetime
