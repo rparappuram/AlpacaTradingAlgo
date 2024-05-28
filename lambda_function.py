@@ -57,7 +57,6 @@ def lambda_handler(event, context):
     else:
         message = "Market is closed"
 
-    raise Exception(message)
     return {
         "statusCode": 200,
         "body": json.dumps(message),
