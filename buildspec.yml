@@ -3,12 +3,10 @@ version: 0.2
 phases:
   install:
     commands:
-      - echo Installing AWS CLI...
       - pip install awscli
 
   pre_build:
     commands:
-      - echo Checking for changes in requirements.txt...
       - REQUIREMENTS_CHANGED="false"
       - if git diff --name-only $CODEBUILD_RESOLVED_SOURCE_VERSION $CODEBUILD_SOURCE_VERSION | grep -q "requirements.txt"; then
         REQUIREMENTS_CHANGED="true"
@@ -16,29 +14,21 @@ phases:
 
   build:
     commands:
-      - echo Building lambda-function.zip...
       - zip lambda-function.zip lambda_function.py
       - 'if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
-        echo Installing dependencies for Lambda Layer...
         mkdir -p package/python
         pip install --platform manylinux2014_aarch64 --target=package/python --implementation cp --python-version 3.11 --only-binary=:all: --upgrade -r requirements.txt
-        echo Building lambda-layer.zip...
         cd package
         zip -r ../lambda-layer.zip .
         fi'
 
   post_build:
     commands:
-      - echo Uploading lambda-function.zip to S3...
       - aws s3 cp lambda-function.zip s3://alpaca-trading-algo/lambda-function.zip
-      - 'if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
-        echo Uploading lambda-layer.zip to S3...
+      - if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
         aws s3 cp lambda-layer.zip s3://alpaca-trading-algo/lambda-layer.zip
-        echo Updating Lambda Layer...
         LAYER_VERSION_ARN=$(aws lambda publish-layer-version --layer-name dependencies --description "Dependencies Layer" --content S3Bucket=alpaca-trading-algo,S3Key=lambda-layer.zip --compatible-runtimes python3.11 | jq -r ".LayerVersionArn")
-        echo "New Layer Version ARN: $LAYER_VERSION_ARN"
-        fi'
-      - echo Updating Lambda Function...
+        fi
       - aws lambda update-function-code --function-name AlpacaTradingAlgo --s3-bucket alpaca-trading-algo --s3-key lambda-function.zip
       - if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
         aws lambda update-function-configuration --function-name AlpacaTradingAlgo --layers $LAYER_VERSION_ARN
