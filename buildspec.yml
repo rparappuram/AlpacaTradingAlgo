@@ -21,3 +21,4 @@ artifacts:
     - lambda-function.zip
     - lambda-layer.zip
   discard-paths: yes
+  name: artifacts
