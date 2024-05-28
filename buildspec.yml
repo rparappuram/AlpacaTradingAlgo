@@ -1,0 +1,23 @@
+version: 0.2
+phases:
+  install:
+    commands:
+      - echo Installing...
+      - mkdir -p package/python
+      - pip install --platform manylinux2014_aarch64 \
+        --target=package/python \
+        --implementation cp \
+        --python-version 3.11 \
+        --only-binary=:all: --upgrade \
+        -r requirements.txt
+  build:
+    commands:
+      - echo Building...
+      - zip lambda-function.zip lambda_function.py
+      - cd package
+      - zip -r ../lambda-layer.zip .
+artifacts:
+  files:
+    - lambda-function.zip
+    - lambda-layer.zip
+  discard-paths: yes
