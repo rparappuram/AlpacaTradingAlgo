@@ -3,7 +3,7 @@ Resources:
   LambdaLayer:
     Type: AWS::Lambda::LayerVersion
     Properties:
-      LayerName: "MyAlpacaTradingLayer"
+      LayerName: "dependencies"
       Content:
         S3Bucket: alpaca-trading-algo
         S3Key: lambda-layer.zip
@@ -13,7 +13,7 @@ Resources:
   LambdaFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: "MyAlpacaTradingFunction"
+      FunctionName: "AlpacaTradingAlgo"
       Handler: "lambda_function.lambda_handler"
       Role: !GetAtt LambdaExecutionRole.Arn
       Code:
@@ -49,4 +49,4 @@ Resources:
                 Action:
                   - "s3:GetObject"
                 Resource:
-                  - !Sub "arn:aws:s3:::alp  a-trading-algo/*"
+                  - !Sub "arn:aws:s3:::alpaca-trading-algo/*"
