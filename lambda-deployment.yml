@@ -50,3 +50,8 @@ Resources:
                   - "s3:GetObject"
                 Resource:
                   - !Sub "arn:aws:s3:::alpaca-trading-algo/*"
+              - Effect: Allow
+                Action:
+                  - "s3:PutObject"
+                Resource:
+                  - !Sub "arn:aws:s3:::alpaca-trading-algo/*"
