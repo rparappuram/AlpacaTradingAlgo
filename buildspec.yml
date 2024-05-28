@@ -4,12 +4,12 @@ phases:
     commands:
       - echo Installing...
       - mkdir -p package/python
-      - pip install --platform manylinux2014_aarch64 \
+      - "pip install --platform manylinux2014_aarch64 \
         --target=package/python \
         --implementation cp \
         --python-version 3.11 \
         --only-binary=:all: --upgrade \
-        -r requirements.txt
+        -r requirements.txt"
   build:
     commands:
       - echo Building...
