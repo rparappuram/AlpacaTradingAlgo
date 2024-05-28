@@ -1,10 +1,6 @@
 version: 0.2
 
 phases:
-  # install:
-  #   commands:
-  #     - pip install awscli
-
   build:
     commands:
       - zip lambda-function.zip lambda_function.py
@@ -18,8 +14,8 @@ phases:
     commands:
       - aws s3 cp lambda-function.zip s3://alpaca-trading-algo/lambda-function.zip
       - aws s3 cp lambda-layer.zip s3://alpaca-trading-algo/lambda-layer.zip
-      - LAYER_VERSION_ARN=$(aws lambda publish-layer-version --layer-name dependencies --description "Dependencies Layer" --content S3Bucket=alpaca-trading-algo,S3Key=lambda-layer.zip --compatible-runtimes python3.11 | jq -r ".LayerVersionArn")
       - aws lambda update-function-code --function-name AlpacaTradingAlgo --s3-bucket alpaca-trading-algo --s3-key lambda-function.zip
+      - LAYER_VERSION_ARN=$(aws lambda publish-layer-version --layer-name dependencies --description "Dependencies Layer" --content S3Bucket=alpaca-trading-algo,S3Key=lambda-layer.zip --compatible-runtimes python3.11 | jq -r ".LayerVersionArn")
       - aws lambda update-function-configuration --function-name AlpacaTradingAlgo --layers $LAYER_VERSION_ARN
 
 artifacts:
