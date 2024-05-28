@@ -60,7 +60,7 @@ def lambda_handler(event, context):
     return {
         "statusCode": 200,
         "body": json.dumps(message),
-    }d
+    }
 
 
 def calculate_rsi(prices: pd.Series) -> float:
@@ -210,7 +210,7 @@ def buy_stocks():
             time_in_force=TimeInForce.DAY,
         )
         print(f"Buying ${budget_per_stock:.2f} of {stock} at ${current_price:.2f}")
-        # trade_client.submit_order(order_data=order)
+        trade_client.submit_order(order_data=order)
 
 
 if __name__ == "__main__":
