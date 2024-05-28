@@ -40,7 +40,7 @@ STOCKS = "AMZN GOOGL BAC DELL GOOG TSM LLY XOM PANW WFC ETN GM AXP SPOT ROIV TAL
 RSI_PERIOD = 14
 DATA_RETRIEVAL_PERIOD = 7
 RSI_UPPER_BOUND = 70
-RSI_LOWER_BOUND = 25
+RSI_LOWER_BOUND = 30
 TRAIL_PERCENT = 6
 
 
@@ -81,7 +81,10 @@ def calculate_rsi(prices: pd.Series) -> float:
 
 
 def get_historical_data(
-    symbol: str, start_date: datetime.datetime, end_date: datetime.datetime
+    symbol: str,
+    start_date: datetime.datetime,
+    end_date: datetime.datetime = datetime.datetime.now()
+    - datetime.timedelta(minutes=20),
 ):
     """
     Get historical data for a given stock
@@ -109,7 +112,6 @@ def sell_stocks():
         bars = get_historical_data(
             symbol,
             datetime.datetime.now() - datetime.timedelta(days=RSI_PERIOD),
-            datetime.datetime.now(),
         )
         prices = bars.df["close"]
         current_price = prices.iloc[-1]
@@ -124,7 +126,7 @@ def sell_stocks():
                 type=OrderType.MARKET,
                 time_in_force=TimeInForce.DAY,
             )
-            print(f"Selling {qty} of {symbol} at {current_price}")
+            print(f"Selling {qty} of {symbol} at ${current_price:.2f}")
             trade_client.submit_order(order_data=order)
 
 
@@ -173,10 +175,11 @@ def buy_stocks():
             stock,
             datetime.datetime.now()
             - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
-            datetime.datetime.now(),
         )
         prices = bars.df["close"]
         rsi = calculate_rsi(prices)
+
+        # print(f"RSI for {stock}: {rsi}")
 
         if rsi < RSI_LOWER_BOUND:
             eligible_stocks.append(stock)
@@ -194,7 +197,6 @@ def buy_stocks():
         bars = get_historical_data(
             stock,
             datetime.datetime.now() - datetime.timedelta(days=DATA_RETRIEVAL_PERIOD),
-            datetime.datetime.now(),
         )
         current_price = bars.df["close"].iloc[-1]
 
@@ -207,8 +209,8 @@ def buy_stocks():
             type=OrderType.MARKET,
             time_in_force=TimeInForce.DAY,
         )
-        print(f"Buying {budget_per_stock} of {stock} at {current_price}")
-        trade_client.submit_order(order_data=order)
+        print(f"Buying ${budget_per_stock:.2f} of {stock} at ${current_price:.2f}")
+        # trade_client.submit_order(order_data=order)
 
 
 if __name__ == "__main__":
