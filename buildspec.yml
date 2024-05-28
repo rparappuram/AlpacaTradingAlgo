@@ -24,12 +24,12 @@ phases:
       - if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
           echo Installing dependencies for Lambda Layer...
           mkdir -p package/python
-          pip install --platform manylinux2014_aarch64 \
+          "pip install --platform manylinux2014_aarch64 \
             --target=package/python \
             --implementation cp \
             --python-version 3.11 \
             --only-binary=:all: --upgrade \
-            -r requirements.txt
+            -r requirements.txt"
           echo Building lambda-layer.zip...
           cd package
           zip -r ../lambda-layer.zip .
