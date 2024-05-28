@@ -51,3 +51,9 @@ phases:
       - if [ "$REQUIREMENTS_CHANGED" = "true" ]; then
           aws lambda update-function-configuration --function-name AlpacaTradingAlgo --layers $LAYER_VERSION_ARN
         fi
+
+artifacts:
+  files:
+    - lambda-function.zip
+    - lambda-layer.zip
+  discard-paths: yes
