@@ -40,4 +40,4 @@ def get_historical_data(
         end=end_date,
     )
     bars = data_client.get_stock_bars(request_params)
-    return bars
+    return bars.df

@@ -14,6 +14,7 @@ from config import (
     RSI_UPPER_BOUND,
     TRAIL_PERCENT,
     DATA_RETRIEVAL_PERIOD,
+    FRACTIONAL_TRADING_DECIMAL_PLACES,
 )
 
 
@@ -27,13 +28,13 @@ def sell_stocks():
     for position in positions:
         symbol = position.symbol
         qty = float(position.qty)
-        bars = get_historical_data(
+        data = get_historical_data(
             symbol,
-            datetime.datetime.now() - datetime.timedelta(days=RSI_PERIOD),
+            datetime.datetime.now()
+            - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
         )
-        prices = bars.df["close"]
-        current_price = prices.iloc[-1]
-        rsi = calculate_rsi(prices)
+        rsi = calculate_rsi(data["close"])
+        current_price = data["close"].iloc[-1]
 
         if rsi > RSI_UPPER_BOUND:
             # Close the position
@@ -90,19 +91,16 @@ def buy_stocks():
     account = trade_client.get_account()
     available_cash = float(account.cash)
     print(f"Available cash: ${available_cash:.2f}")
-    if available_cash <= 0:
-        return
 
     # Check stocks to buy
     eligible_stocks = []
     for stock in STOCKS:
-        bars = get_historical_data(
+        prices = get_historical_data(
             stock,
             datetime.datetime.now()
             - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
         )
-        prices = bars.df["close"]
-        rsi = calculate_rsi(prices)
+        rsi = calculate_rsi(prices["close"])
 
         # print(f"RSI for {stock}: {rsi}")
 
@@ -113,19 +111,25 @@ def buy_stocks():
         return
 
     # Buy eligible stocks
+    available_cash *= 0.9  # Keep 10% as reserve
     budget_per_stock = available_cash / len(eligible_stocks)
-    truncate = lambda x: int(x * 10**9) / 10**9
+    truncate = (
+        lambda x: int(x * 10**FRACTIONAL_TRADING_DECIMAL_PLACES)
+        / 10**FRACTIONAL_TRADING_DECIMAL_PLACES
+    )
     budget_per_stock = truncate(budget_per_stock)
     if budget_per_stock <= 0:
-        print(f"Insufficient Budget per stock: ${budget_per_stock:.2f}")
+        print(
+            f"Insufficient Budget per stock: ${budget_per_stock:.{FRACTIONAL_TRADING_DECIMAL_PLACES}f}"
+        )
         return
     for stock in eligible_stocks:
         # Get current price
-        bars = get_historical_data(
+        prices = get_historical_data(
             stock,
             datetime.datetime.now() - datetime.timedelta(days=DATA_RETRIEVAL_PERIOD),
         )
-        current_price = bars.df["close"].iloc[-1]
+        current_price = prices["close"].iloc[-1]
 
         # Place order
         order = OrderRequest(
