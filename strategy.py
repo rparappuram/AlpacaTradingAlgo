@@ -87,6 +87,12 @@ def buy_stocks():
     Buy stocks based on the RSI indicator
     """
     print("BUYING STOCKS" + "-" * 100)
+    account = trade_client.get_account()
+    available_cash = float(account.cash)
+    print(f"Available cash: ${available_cash:.2f}")
+    if available_cash <= 0:
+        return
+
     # Check stocks to buy
     eligible_stocks = []
     for stock in STOCKS:
@@ -103,15 +109,15 @@ def buy_stocks():
         if rsi < RSI_LOWER_BOUND:
             eligible_stocks.append(stock)
     print(f"Eligible stocks to buy: {eligible_stocks}")
+    if not eligible_stocks:
+        return
 
     # Buy eligible stocks
-    account = trade_client.get_account()
-    available_cash = float(account.cash) * 0.9
     budget_per_stock = available_cash / len(eligible_stocks)
+    truncate = lambda x: int(x * 10**9) / 10**9
+    budget_per_stock = truncate(budget_per_stock)
     if budget_per_stock <= 0:
-        print(
-            f"Insufficient funds to buy stocks. Available cash: ${available_cash:.2f}"
-        )
+        print(f"Insufficient Budget per stock: ${budget_per_stock:.2f}")
         return
     for stock in eligible_stocks:
         # Get current price
