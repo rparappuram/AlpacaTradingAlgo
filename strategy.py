@@ -37,6 +37,12 @@ def sell_stocks():
         current_price = data["close"].iloc[-1]
 
         if rsi > RSI_UPPER_BOUND:
+            # Cancel all open orders
+            filter = GetOrdersRequest(symbol=symbol, status="open")
+            existing_orders = trade_client.get_orders(filter=filter)
+            for order in existing_orders:
+                trade_client.cancel_order_by_id(order.id)
+
             # Close the position
             order = OrderRequest(
                 symbol=symbol,
@@ -63,11 +69,10 @@ def place_trailing_stop():
         existing_orders = trade_client.get_orders(filter=filter)
 
         # Check if there is already a trailing stop order for all quantities
-        trailing_stop_order_qty = sum(
-            float(order.qty)
-            for order in existing_orders
-            if order.type == OrderType.TRAILING_STOP
-        )
+        trailing_stop_order_qty = 0.0
+        for order in existing_orders:
+            if order.type == OrderType.TRAILING_STOP:
+                trailing_stop_order_qty += float(order.qty)
 
         # Place a new trailing stop order for the remaining quantities
         qty_to_cover = int(qty - trailing_stop_order_qty)
