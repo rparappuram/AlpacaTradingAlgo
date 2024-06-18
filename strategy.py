@@ -1,10 +1,11 @@
 import datetime
+from pytz import timezone
 from alpaca.trading.requests import (
     OrderRequest,
     TrailingStopOrderRequest,
     GetOrdersRequest,
 )
-from alpaca.trading.enums import OrderSide, OrderType, TimeInForce
+from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, QueryOrderStatus
 from util import calculate_rsi, get_historical_data
 from config import (
     trade_client,
@@ -34,6 +35,25 @@ def sell_stocks():
         )
         rsi = calculate_rsi(data["close"])
         current_price = data["close"].iloc[-1]
+
+        # Close position if trailing stop order has been filled in last 24 hours
+        filter = GetOrdersRequest(
+            symbols=[symbol], status=QueryOrderStatus.CLOSED, side=OrderSide.SELL, after=datetime.datetime.now() - datetime.timedelta(days=1)
+        )
+        existing_orders = trade_client.get_orders(filter=filter)
+        for order in existing_orders:
+            if order.type == OrderType.TRAILING_STOP:
+                filled_at = order.filled_at.astimezone(timezone('US/Eastern'))
+                print(f"Trailing stop order filled at {filled_at} for {order.symbol} {order.qty}")
+                order = OrderRequest(
+                    symbol=symbol,
+                    qty=qty,
+                    side=OrderSide.SELL,
+                    type=OrderType.MARKET,
+                    time_in_force=TimeInForce.DAY,
+                )
+                print(f"Selling {qty} of {symbol} at ${current_price:.2f} due to FILLED trailing stop order")
+                trade_client.submit_order(order_data=order)
 
         if rsi > RSI_UPPER_BOUND:
             # Cancel all open orders
@@ -96,8 +116,8 @@ def buy_stocks():
     """
     print("BUYING STOCKS" + "-" * 100)
     account = trade_client.get_account()
-    available_cash = float(account.cash)
-    print(f"Available cash: ${available_cash:.2f}")
+    available_buying_power = float(account.buying_power)
+    print(f"Available buying power: ${available_buying_power:.2f}")
 
     # Check stocks to buy
     eligible_stocks = []
@@ -118,8 +138,8 @@ def buy_stocks():
         return
 
     # Buy eligible stocks
-    available_cash *= 0.9  # Keep 10% as reserve
-    budget_per_stock = available_cash / len(eligible_stocks)
+    available_buying_power *= 0.9  # Keep 10% as reserve
+    budget_per_stock = available_buying_power / len(eligible_stocks)
     budget_per_stock = round(budget_per_stock, 2)
     if budget_per_stock <= 0:
         print(f"Insufficient Budget per stock: ${budget_per_stock:}")
