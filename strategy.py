@@ -14,7 +14,6 @@ from config import (
     RSI_UPPER_BOUND,
     TRAIL_PERCENT,
     DATA_RETRIEVAL_PERIOD,
-    FRACTIONAL_TRADING_DECIMAL_PLACES,
 )
 
 
@@ -38,9 +37,12 @@ def sell_stocks():
 
         if rsi > RSI_UPPER_BOUND:
             # Cancel all open orders
-            filter = GetOrdersRequest(symbols=[symbol], status="open")
+            filter = GetOrdersRequest(
+                symbols=[symbol], status="open", side=OrderSide.SELL
+            )
             existing_orders = trade_client.get_orders(filter=filter)
             for order in existing_orders:
+                print(f"Cancelling order: {order.symbol} {order.qty} {order.type}")
                 trade_client.cancel_order_by_id(order.id)
 
             # Close the position
@@ -118,15 +120,9 @@ def buy_stocks():
     # Buy eligible stocks
     available_cash *= 0.9  # Keep 10% as reserve
     budget_per_stock = available_cash / len(eligible_stocks)
-    truncate = (
-        lambda x: int(x * 10**FRACTIONAL_TRADING_DECIMAL_PLACES)
-        / 10**FRACTIONAL_TRADING_DECIMAL_PLACES
-    )
-    budget_per_stock = truncate(budget_per_stock)
+    budget_per_stock = round(budget_per_stock, 2)
     if budget_per_stock <= 0:
-        print(
-            f"Insufficient Budget per stock: ${budget_per_stock:.{FRACTIONAL_TRADING_DECIMAL_PLACES}f}"
-        )
+        print(f"Insufficient Budget per stock: ${budget_per_stock:}")
         return
     for stock in eligible_stocks:
         # Get current price
@@ -144,5 +140,5 @@ def buy_stocks():
             type=OrderType.MARKET,
             time_in_force=TimeInForce.DAY,
         )
-        print(f"Buying ${budget_per_stock:.2f} of {stock} at ${current_price:.2f}")
+        print(f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}")
         trade_client.submit_order(order_data=order)
