@@ -38,7 +38,7 @@ def sell_stocks():
 
         if rsi > RSI_UPPER_BOUND:
             # Cancel all open orders
-            filter = GetOrdersRequest(symbol=symbol, status="open")
+            filter = GetOrdersRequest(symbols=[symbol], status="open")
             existing_orders = trade_client.get_orders(filter=filter)
             for order in existing_orders:
                 trade_client.cancel_order_by_id(order.id)
