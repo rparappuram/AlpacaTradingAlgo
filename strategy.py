@@ -135,7 +135,7 @@ def buy_stocks():
             eligible_stocks.append(stock)
     print(f"Eligible stocks to buy: {eligible_stocks}")
     if not eligible_stocks:
-        return
+        return # No buying opportunity
 
     # Buy eligible stocks
     available_buying_power *= 0.9  # Keep 10% as reserve

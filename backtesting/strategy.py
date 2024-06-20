@@ -70,27 +70,27 @@ class SwingStrategy(bt.Strategy):
                     self.order_reasons[self.orders[data].ref] = "RSI Signal"
 
         # Step 2: Buy if RSI < self.params.rsi_lower
+        # Check stocks to buy
         eligible_stocks = [
             data for data in self.datas if self.rsi[data] < self.params.rsi_lower
         ]
-        if not eligible_stocks:
-            return  # No buying opportunity
-
-        cash = self.broker.get_cash()
-        num_affordable_stocks = len(eligible_stocks)
-        affordable_stocks = []
 
         # Dynamically adjust the budget per stock
+        cash = self.broker.get_cash() * 0.9  # Keep 10% as reserve
+        num_affordable_stocks = len(eligible_stocks)
+        affordable_stocks = []
         for data in eligible_stocks:
             budget_per_stock = cash / num_affordable_stocks
             if data.close[0] <= budget_per_stock:  # affordable
                 affordable_stocks.append(data)
             else:  # not affordable
                 num_affordable_stocks -= 1
+        if not affordable_stocks:
+            return # No buying opportunity
 
         # Execute buy orders for affordable stocks
+        budget_per_stock = cash / len(affordable_stocks)
         for data in affordable_stocks:
-            budget_per_stock = cash / len(affordable_stocks)
             size = int(budget_per_stock / data.close[0])
             if size > 0:
                 self.log(f"Buying {size} shares of {data._name} at {data.close[0]}")

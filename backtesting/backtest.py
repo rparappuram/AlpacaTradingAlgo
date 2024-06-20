@@ -13,13 +13,17 @@ from config import *
 class BacktestFineTuner:
     def __init__(self, **kwargs):
         print("=" * 80)
-        print(f"START_DATE = {START_DATE}")
+        print(f"""BacktestFineTuner with parameters:""")
         for key, value in kwargs.items():
             setattr(self, key, value)
             print(f"{key} = {value}")
         print("=" * 80)
 
     def run(self, **kwargs):
+        """
+        Run strategy with parameters from config.py.
+        Plots the results.
+        """
         cerebro = bt.Cerebro()
         data = yf.download(
             TICKERS,
@@ -69,8 +73,9 @@ class BacktestFineTuner:
                     continue
 
                 # print parameters for this run
-                # for key, value in zip(fieldnames, combination):
-                #     print(f"{key} = {value}")
+                for key, value in zip(fieldnames, combination):
+                    print(f"{key} = {value}")
+                print("-" * 40)
 
                 cerebro = bt.Cerebro()
                 data = yf.download(
@@ -122,5 +127,11 @@ class BacktestFineTuner:
         return parameters_analysis
 
 
-backtest_finetuner = BacktestFineTuner()
-backtest_finetuner.run()
+backtest_finetuner = BacktestFineTuner(
+    rsi_period=[14],
+    rsi_upper=[70],
+    rsi_lower=[25, 30],
+    trail_perc=[0.06],
+)
+# backtest_finetuner.run()
+backtest_finetuner.finetune()
