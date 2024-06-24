@@ -10,11 +10,19 @@ class SwingStrategy(bt.Strategy):
         self.params.rsi_upper = kwargs.get("rsi_upper", RSI_UPPER)
         self.params.rsi_lower = kwargs.get("rsi_lower", RSI_LOWER)
         self.params.trail_perc = kwargs.get("trail_perc", TRAIL_PERC)
+        self.params.atr_period = kwargs.get("atr_period", ATR_PERIOD)
+        self.params.atr_loose_multiplier = kwargs.get("atr_loose_multiplier", ATR_LOOSE_MULTIPLIER)
+        self.params.atr_strict_multiplier = kwargs.get("atr_strict_multiplier", ATR_STRICT_MULTIPLIER)
         self.params.backtesting = kwargs.get("backtesting", False)
         self.rsi = {
             data: bt.indicators.RSI(data, period=self.params.rsi_period)
             for data in self.datas
         }
+        if self.params.atr_period != 0:
+            self.atr = {
+                data: bt.indicators.ATR(data, period=self.params.atr_period)
+                for data in self.datas
+            }
         self.order_reasons = {}
         self.orders = {data: None for data in self.datas}
         self.trail_orders = {data: [] for data in self.datas}
@@ -27,12 +35,12 @@ class SwingStrategy(bt.Strategy):
         if order.status in [order.Completed]:
             if order.isbuy():
                 self.log(
-                    f"BUY {order.data._name}, Price: {order.executed.price}, Size: {order.executed.size}"
+                    f"BOUGHT {order.data._name}, Price: ${order.executed.price:.2f}, Size: {order.executed.size}"
                 )
             elif order.issell():
                 reason = self.order_reasons.get(order.ref, "Unknown Reason")
                 self.log(
-                    f"SELL {order.data._name}, Price: {order.executed.price}, Size: {order.executed.size} due to {reason}"
+                    f"SOLD {order.data._name}, Price: ${order.executed.price:.2f}, Size: {order.executed.size} due to {reason}"
                 )
                 if order.ref in self.order_reasons:  # Clean up after using the reason
                     del self.order_reasons[order.ref]
@@ -61,13 +69,30 @@ class SwingStrategy(bt.Strategy):
 
             if pos.size:  # Position is open
                 if self.rsi[data] > self.params.rsi_upper:  # Positions should be closed
-                    # Cancel all trailing stop orders
+                    self.log(f"Selling {pos.size} shares of {data._name} at {data.close[0]}")
+                    # Cancel all orders for this stock
                     for trail_order in self.trail_orders[data]:
                         self.cancel(trail_order)
                     self.trail_orders[data] = []
+                    if self.orders[data]:
+                        self.cancel(self.orders[data])
+                        self.orders[data] = None
 
-                    self.orders[data] = self.close(data)
-                    self.order_reasons[self.orders[data].ref] = "RSI Signal"
+                    if self.params.atr_period != 0:
+                        atr = self.atr[data]
+                        order = self.sell(
+                            data,
+                            size=pos.size,
+                            exectype=bt.Order.StopTrail,
+                            trailpercent=atr[0] * self.params.atr_strict_multiplier,
+                        )
+                        order_reason = f"RSI Signal with ATR={atr[0]} Multiplier={self.params.atr_strict_multiplier:.4f} Trail Percent={atr[0] * self.params.atr_strict_multiplier:.4f}"
+                    else:
+                        order = self.close(data)
+                        order_reason = "RSI Signal"
+
+                    self.orders[data] = order
+                    self.order_reasons[order.ref] = order_reason
 
         # Step 2: Buy if RSI < self.params.rsi_lower
         # Check stocks to buy
@@ -93,13 +118,27 @@ class SwingStrategy(bt.Strategy):
         for data in affordable_stocks:
             size = int(budget_per_stock / data.close[0])
             if size > 0:
-                self.log(f"Buying {size} shares of {data._name} at {data.close[0]}")
-                self.orders[data] = self.buy(data, size=size)
+                # self.log(f"Buying {size} shares of {data._name} at {data.close[0]}")
+
+                if self.params.atr_period != 0:
+                    atr = self.atr[data]
+                    order = self.buy(
+                        data,
+                        size=size,
+                        exectype=bt.Order.StopTrail,
+                        trailpercent=atr[0] * self.params.atr_strict_multiplier,
+                    )
+                else:
+                    order = self.buy(data, size=size)
+
+                self.orders[data] = order
+
+                atr = self.atr[data]
                 trail_order = self.sell(
                     data,
                     size=size,
                     exectype=bt.Order.StopTrail,
-                    trailpercent=self.params.trail_perc,
+                    trailpercent=atr[0] * self.params.atr_loose_multiplier,
                 )
                 self.trail_orders[data].append(trail_order)
                 self.order_reasons[trail_order.ref] = "Trailing Stop"

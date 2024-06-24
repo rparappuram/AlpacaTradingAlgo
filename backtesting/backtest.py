@@ -10,15 +10,7 @@ from strategy import SwingStrategy
 from config import *
 
 
-class BacktestFineTuner:
-    def __init__(self, **kwargs):
-        print("=" * 80)
-        print(f"""BacktestFineTuner with parameters:""")
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-            print(f"{key} = {value}")
-        print("=" * 80)
-
+class Backtester:
     def run(self, **kwargs):
         """
         Run strategy with parameters from config.py.
@@ -42,7 +34,14 @@ class BacktestFineTuner:
         cerebro.run()
         cerebro.plot()
 
-    def finetune(self):
+    def finetune(self, **kwargs):
+        print("=" * 80)
+        print(f"""BacktestFineTuner with parameters:""")
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+            print(f"{key} = {value}")
+        print("=" * 80)
+
         csv_file_path = f"finetune_results_{START_DATE}.csv"
         file_exists = os.path.isfile(csv_file_path)
 
@@ -56,6 +55,11 @@ class BacktestFineTuner:
             if not file_exists:
                 writer.writeheader()
 
+            # remove any rows with nan final_value
+            df = pd.read_csv(csv_file_path)
+            df = df.dropna(subset=["final_value"])
+            df.to_csv(csv_file_path, index=False)
+
             for combination in itertools.product(*list_attrs.values()):
                 # skip if combination is already in csv and has final_value != nan
                 # check if combination is already in csv
@@ -66,7 +70,7 @@ class BacktestFineTuner:
                         if all(
                             str(row[key]) == str(value)
                             for key, value in zip(fieldnames[:-1], combination)
-                        ):
+                        ) and row["final_value"] != "nan":
                             skip = True
                             break
                 if skip:
@@ -127,11 +131,15 @@ class BacktestFineTuner:
         return parameters_analysis
 
 
-backtest_finetuner = BacktestFineTuner(
-    rsi_period=[14],
-    rsi_upper=[70],
-    rsi_lower=[25, 30],
-    trail_perc=[0.06],
-)
-# backtest_finetuner.run()
-backtest_finetuner.finetune()
+backtester = Backtester()
+backtester.run()
+# backtester.finetune(
+#     # rsi_period=[14],
+#     # rsi_upper=[70],
+#     # rsi_lower=[25, 30],
+#     # trail_perc=[0.06],
+#     atr_period=[14],
+#     atr_loose_multiplier=[.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5] ,
+#     atr_strict_multiplier=[0.01, .05, .1, .2, .3, .4, .5, .6, .7, .8, .9, 1],
+# )
+# backtester.analyze_parameters()
