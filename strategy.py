@@ -38,13 +38,18 @@ def sell_stocks():
 
         # Close position if trailing stop order has been filled in last 24 hours
         filter = GetOrdersRequest(
-            symbols=[symbol], status=QueryOrderStatus.CLOSED, side=OrderSide.SELL, after=datetime.datetime.now() - datetime.timedelta(days=1)
+            symbols=[symbol],
+            status=QueryOrderStatus.CLOSED,
+            side=OrderSide.SELL,
+            after=datetime.datetime.now() - datetime.timedelta(days=1),
         )
         existing_orders = trade_client.get_orders(filter=filter)
         for order in existing_orders:
             if order.type == OrderType.TRAILING_STOP:
-                filled_at = order.filled_at.astimezone(timezone('US/Eastern'))
-                print(f"Trailing stop order filled at {filled_at} for {order.symbol} {order.qty}")
+                filled_at = order.filled_at.astimezone(timezone("US/Eastern"))
+                print(
+                    f"Trailing stop order filled at {filled_at} for {order.symbol} {order.qty}"
+                )
                 order = OrderRequest(
                     symbol=symbol,
                     qty=qty,
@@ -52,7 +57,9 @@ def sell_stocks():
                     type=OrderType.MARKET,
                     time_in_force=TimeInForce.DAY,
                 )
-                print(f"Selling {qty} of {symbol} at ${current_price:.2f} due to FILLED trailing stop order")
+                print(
+                    f"Selling {qty} of {symbol} at ${current_price:.2f} due to FILLED trailing stop order"
+                )
                 trade_client.submit_order(order_data=order)
 
         if rsi > RSI_UPPER_BOUND:
@@ -135,7 +142,7 @@ def buy_stocks():
             eligible_stocks.append(stock)
     print(f"Eligible stocks to buy: {eligible_stocks}")
     if not eligible_stocks:
-        return # No buying opportunity
+        return  # No buying opportunity
 
     # Buy eligible stocks
     available_buying_power *= 0.9  # Keep 10% as reserve
