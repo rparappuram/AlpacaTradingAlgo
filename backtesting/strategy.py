@@ -181,6 +181,8 @@ def run():
         interval="1d",
         progress=False,
     )
+    data = data.dropna(axis=1)
+
     # add data to cerebro
     for ticker in TICKERS:
         df = data.loc[:, (slice(None), ticker)].copy()

@@ -102,8 +102,9 @@ class Backtester:
 
         # get mean final_value for each parameter using top 10% of final_value
         for parameter in df.columns[:-1]:
-            top_10 = df.nlargest(int(len(df) * 0.1), "final_value")
-            results = top_10.groupby(parameter)["final_value"].mean()
+            top_n = int(len(df) * 0.1) if len(df) > 10 else len(df)
+            df = df.nlargest(top_n, "final_value")
+            results = df.groupby(parameter)["final_value"].mean()
             results = results.sort_values(ascending=False)
             parameters_analysis[parameter] = results
             print(results)
@@ -111,9 +112,6 @@ class Backtester:
 
 
 backtester = Backtester()
-period = range(4, 15, 1)
 backtester.finetune(
-    rsi_upper=range(65, 76, 1),
-    rsi_lower=range(25, 36, 1),
 )
 backtester.analyze_parameters()
