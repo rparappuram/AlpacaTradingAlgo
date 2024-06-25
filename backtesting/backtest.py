@@ -31,6 +31,7 @@ class Backtester:
 
             if not file_exists:
                 writer.writeheader()
+                file.flush()
 
             # remove any rows with nan final_value
             df = pd.read_csv(csv_file_path)
@@ -66,7 +67,6 @@ class Backtester:
                 # print parameters for this run
                 for key, value in zip(fieldnames, combination):
                     print(f"{key} = {value}")
-                print("-" * 40)
 
                 cerebro = bt.Cerebro()
 
@@ -86,6 +86,8 @@ class Backtester:
                 d = {key: value for key, value in zip(fieldnames, combination)}
                 d["final_value"] = cerebro.broker.getvalue()
                 writer.writerow(d)
+
+                print("-" * 40)
 
     def analyze_parameters(self):
         df = pd.read_csv(f"finetune_results_{START_DATE}.csv")
@@ -110,10 +112,8 @@ class Backtester:
 
 backtester = Backtester()
 period = range(4, 15, 1)
-# backtester.finetune(
-#     rsi_period=period,
-#     atr_period=period,
-#     atr_loose_multiplier=[1.75, 2, 2.25, 2.5, 2.75, 3],
-#     atr_strict_multiplier=[0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02],
-# )
+backtester.finetune(
+    rsi_upper=range(65, 76, 1),
+    rsi_lower=range(25, 36, 1),
+)
 backtester.analyze_parameters()

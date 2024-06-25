@@ -9,7 +9,6 @@ class SwingStrategy(bt.Strategy):
         self.params.rsi_period = kwargs.get("rsi_period", RSI_PERIOD)
         self.params.rsi_upper = kwargs.get("rsi_upper", RSI_UPPER)
         self.params.rsi_lower = kwargs.get("rsi_lower", RSI_LOWER)
-        self.params.trail_perc = kwargs.get("trail_perc", TRAIL_PERC)
         self.params.atr_period = kwargs.get("atr_period", ATR_PERIOD)
         self.params.atr_loose_multiplier = kwargs.get(
             "atr_loose_multiplier", ATR_LOOSE_MULTIPLIER
@@ -147,11 +146,7 @@ class SwingStrategy(bt.Strategy):
 
                 self.orders[data].append(order)
 
-                trailpercent = (
-                    self.atr[data][0] * self.params.atr_loose_multiplier
-                    if self.params.atr_period != 0
-                    else self.params.trail_perc
-                )
+                trailpercent = self.atr[data][0] * self.params.atr_loose_multiplier
                 trail_order = self.sell(
                     data,
                     size=size,
