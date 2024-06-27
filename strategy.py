@@ -24,7 +24,7 @@ def sell_stocks():
     Sell stocks based on the RSI indicator
     """
     print("SELLING STOCKS" + "-" * 100)
-    # Check all open positions
+
     positions = trade_client.get_all_positions()
     for position in positions:
         symbol = position.symbol

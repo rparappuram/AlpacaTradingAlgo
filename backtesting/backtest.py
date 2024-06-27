@@ -112,6 +112,5 @@ class Backtester:
 
 
 backtester = Backtester()
-backtester.finetune(
-)
+backtester.finetune()
 backtester.analyze_parameters()
