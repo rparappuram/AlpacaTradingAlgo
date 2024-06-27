@@ -6,15 +6,16 @@ from alpaca.trading.requests import (
     GetOrdersRequest,
 )
 from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, QueryOrderStatus
-from util import calculate_rsi, get_historical_data
+from util import get_historical_data, calculate_rsi, calculate_atr
 from config import (
     trade_client,
     STOCKS,
     RSI_PERIOD,
-    RSI_LOWER_BOUND,
-    RSI_UPPER_BOUND,
-    TRAIL_PERCENT,
     DATA_RETRIEVAL_PERIOD,
+    RSI_LOWER,
+    RSI_UPPER,
+    ATR_PERIOD,
+    ATR_MULTIPLIER,
 )
 
 
@@ -46,9 +47,9 @@ def sell_stocks():
         existing_orders = trade_client.get_orders(filter=filter)
         for order in existing_orders:
             if order.type == OrderType.TRAILING_STOP:
-                filled_at = order.filled_at.astimezone(timezone("US/Eastern"))
+                time_filled_at = order.filled_at.astimezone(timezone("US/Eastern"))
                 print(
-                    f"Trailing stop order filled at {filled_at} for {order.symbol} {order.qty}"
+                    f"Trailing stop order filled at {time_filled_at} for {order.symbol} {order.qty}"
                 )
                 order = OrderRequest(
                     symbol=symbol,
@@ -62,7 +63,7 @@ def sell_stocks():
                 )
                 trade_client.submit_order(order_data=order)
 
-        if rsi > RSI_UPPER_BOUND:
+        if rsi > RSI_UPPER:
             # Cancel all open orders
             filter = GetOrdersRequest(
                 symbols=[symbol], status="open", side=OrderSide.SELL
@@ -89,12 +90,11 @@ def place_trailing_stop():
     Place a sell trailing stop order for all open positions
     """
     print("TRAILING STOP ORDERS" + "-" * 100)
-    # Check all open positions
     positions = trade_client.get_all_positions()
     for position in positions:
         symbol = position.symbol
         qty = float(position.qty)
-        filter = GetOrdersRequest(symbol=symbol, status="open")
+        filter = GetOrdersRequest(symbols=[symbol], status="open", side=OrderSide.SELL)
         existing_orders = trade_client.get_orders(filter=filter)
 
         # Check if there is already a trailing stop order for all quantities
@@ -106,11 +106,18 @@ def place_trailing_stop():
         # Place a new trailing stop order for the remaining quantities
         qty_to_cover = int(qty - trailing_stop_order_qty)
         if qty_to_cover > 0:
+            data = get_historical_data(
+                symbol,
+                datetime.datetime.now()
+                - datetime.timedelta(days=ATR_PERIOD + DATA_RETRIEVAL_PERIOD),
+            )
+            atr = calculate_atr(data)
+            trailing_stop_percent = atr * ATR_MULTIPLIER
             order = TrailingStopOrderRequest(
                 symbol=symbol,
                 qty=qty_to_cover,
                 side=OrderSide.SELL,
-                trail_percent=TRAIL_PERCENT,
+                trail_percent=trailing_stop_percent,
                 time_in_force=TimeInForce.GTC,
             )
             print(f"Placing trailing stop order for {qty_to_cover} of {symbol}")
@@ -138,7 +145,7 @@ def buy_stocks():
 
         # print(f"RSI for {stock}: {rsi}")
 
-        if rsi < RSI_LOWER_BOUND:
+        if rsi < RSI_LOWER:
             eligible_stocks.append(stock)
     print(f"Eligible stocks to buy: {eligible_stocks}")
     if not eligible_stocks:
