@@ -135,7 +135,7 @@ def buy_stocks():
     available_buying_power *= 0.9  # Keep 10% as reserve
     budget_per_stock = available_buying_power / len(eligible_stocks)
     budget_per_stock = round(budget_per_stock, 2)
-    if budget_per_stock > 1.0:
+    if budget_per_stock >= 1.0:
         for stock in eligible_stocks:
             current_price = get_current_price(stock)
             order = OrderRequest(
