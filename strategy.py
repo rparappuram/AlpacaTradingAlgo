@@ -6,15 +6,13 @@ from alpaca.trading.requests import (
     GetOrdersRequest,
 )
 from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, QueryOrderStatus
-from util import calculate_rsi, get_historical_data
+from util import calculate_rsi, calculate_atr, get_current_price
 from config import (
     trade_client,
     STOCKS,
-    RSI_PERIOD,
-    RSI_LOWER_BOUND,
-    RSI_UPPER_BOUND,
-    TRAIL_PERCENT,
-    DATA_RETRIEVAL_PERIOD,
+    RSI_LOWER,
+    RSI_UPPER,
+    ATR_MULTIPLIER,
 )
 
 
@@ -23,28 +21,33 @@ def sell_stocks():
     Sell stocks based on the RSI indicator
     """
     print("SELLING STOCKS" + "-" * 100)
-    # Check all open positions
+
     positions = trade_client.get_all_positions()
     for position in positions:
         symbol = position.symbol
         qty = float(position.qty)
-        data = get_historical_data(
-            symbol,
-            datetime.datetime.now()
-            - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
-        )
-        rsi = calculate_rsi(data["close"])
-        current_price = data["close"].iloc[-1]
+        current_price = get_current_price(symbol)
 
-        # Close position if trailing stop order has been filled in last 24 hours
+        # Pre-selling checks:
+        # 1. Check if there is a FILLED trailing stop order in the last 24 hours
+        # 2. Close the position because it's not profitable
         filter = GetOrdersRequest(
-            symbols=[symbol], status=QueryOrderStatus.CLOSED, side=OrderSide.SELL, after=datetime.datetime.now() - datetime.timedelta(days=1)
+            symbols=[symbol],
+            status=QueryOrderStatus.CLOSED,
+            side=OrderSide.SELL,
+            after=datetime.datetime.now() - datetime.timedelta(days=1),
         )
         existing_orders = trade_client.get_orders(filter=filter)
+        filled_trailing_stop_symbols = set()
         for order in existing_orders:
-            if order.type == OrderType.TRAILING_STOP:
-                filled_at = order.filled_at.astimezone(timezone('US/Eastern'))
-                print(f"Trailing stop order filled at {filled_at} for {order.symbol} {order.qty}")
+            if (
+                order.type == OrderType.TRAILING_STOP
+                and symbol not in filled_trailing_stop_symbols
+            ):
+                time_filled_at = order.filled_at.astimezone(timezone("US/Eastern"))
+                print(
+                    f"Trailing stop order filled at {time_filled_at} for {order.symbol} {order.qty}"
+                )
                 order = OrderRequest(
                     symbol=symbol,
                     qty=qty,
@@ -52,11 +55,18 @@ def sell_stocks():
                     type=OrderType.MARKET,
                     time_in_force=TimeInForce.DAY,
                 )
-                print(f"Selling {qty} of {symbol} at ${current_price:.2f} due to FILLED trailing stop order")
+                print(
+                    f"Selling {qty} of {symbol} at ${current_price:.2f} due to FILLED trailing stop order"
+                )
                 trade_client.submit_order(order_data=order)
+                filled_trailing_stop_symbols.add(symbol)
 
-        if rsi > RSI_UPPER_BOUND:
-            # Cancel all open orders
+        # Main selling logic:
+        # 1. Check if RSI is above the upper threshold
+        # 2. If so, cancel all open (sell trailing stop) orders and close the position
+        rsi = calculate_rsi(symbol)
+        if rsi > RSI_UPPER:
+            # Cancel all open (sell trailing stop) orders
             filter = GetOrdersRequest(
                 symbols=[symbol], status="open", side=OrderSide.SELL
             )
@@ -79,15 +89,14 @@ def sell_stocks():
 
 def place_trailing_stop():
     """
-    Place a sell trailing stop order for all open positions
+    Place a sell trailing stop loss order for all positions
     """
     print("TRAILING STOP ORDERS" + "-" * 100)
-    # Check all open positions
     positions = trade_client.get_all_positions()
     for position in positions:
         symbol = position.symbol
         qty = float(position.qty)
-        filter = GetOrdersRequest(symbol=symbol, status="open")
+        filter = GetOrdersRequest(symbols=[symbol], status="open", side=OrderSide.SELL)
         existing_orders = trade_client.get_orders(filter=filter)
 
         # Check if there is already a trailing stop order for all quantities
@@ -103,7 +112,7 @@ def place_trailing_stop():
                 symbol=symbol,
                 qty=qty_to_cover,
                 side=OrderSide.SELL,
-                trail_percent=TRAIL_PERCENT,
+                trail_percent=calculate_atr(symbol) * ATR_MULTIPLIER,
                 time_in_force=TimeInForce.GTC,
             )
             print(f"Placing trailing stop order for {qty_to_cover} of {symbol}")
@@ -120,45 +129,26 @@ def buy_stocks():
     print(f"Available buying power: ${available_buying_power:.2f}")
 
     # Check stocks to buy
-    eligible_stocks = []
-    for stock in STOCKS:
-        prices = get_historical_data(
-            stock,
-            datetime.datetime.now()
-            - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
-        )
-        rsi = calculate_rsi(prices["close"])
-
-        # print(f"RSI for {stock}: {rsi}")
-
-        if rsi < RSI_LOWER_BOUND:
-            eligible_stocks.append(stock)
+    eligible_stocks = [stock for stock in STOCKS if calculate_rsi(stock) < RSI_LOWER]
     print(f"Eligible stocks to buy: {eligible_stocks}")
     if not eligible_stocks:
-        return
+        return  # No buying opportunity
 
     # Buy eligible stocks
     available_buying_power *= 0.9  # Keep 10% as reserve
     budget_per_stock = available_buying_power / len(eligible_stocks)
     budget_per_stock = round(budget_per_stock, 2)
-    if budget_per_stock <= 0:
+    if budget_per_stock >= 1.0:
+        for stock in eligible_stocks:
+            current_price = get_current_price(stock)
+            order = OrderRequest(
+                symbol=stock,
+                notional=budget_per_stock,
+                side=OrderSide.BUY,
+                type=OrderType.MARKET,
+                time_in_force=TimeInForce.DAY,
+            )
+            print(f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}")
+            trade_client.submit_order(order_data=order)
+    else:
         print(f"Insufficient Budget per stock: ${budget_per_stock:}")
-        return
-    for stock in eligible_stocks:
-        # Get current price
-        prices = get_historical_data(
-            stock,
-            datetime.datetime.now() - datetime.timedelta(days=DATA_RETRIEVAL_PERIOD),
-        )
-        current_price = prices["close"].iloc[-1]
-
-        # Place order
-        order = OrderRequest(
-            symbol=stock,
-            notional=budget_per_stock,
-            side=OrderSide.BUY,
-            type=OrderType.MARKET,
-            time_in_force=TimeInForce.DAY,
-        )
-        print(f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}")
-        trade_client.submit_order(order_data=order)
