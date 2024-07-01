@@ -40,7 +40,10 @@ def sell_stocks():
         existing_orders = trade_client.get_orders(filter=filter)
         filled_trailing_stop_symbols = set()
         for order in existing_orders:
-            if order.type == OrderType.TRAILING_STOP and symbol not in filled_trailing_stop_symbols:
+            if (
+                order.type == OrderType.TRAILING_STOP
+                and symbol not in filled_trailing_stop_symbols
+            ):
                 time_filled_at = order.filled_at.astimezone(timezone("US/Eastern"))
                 print(
                     f"Trailing stop order filled at {time_filled_at} for {order.symbol} {order.qty}"
@@ -149,4 +152,3 @@ def buy_stocks():
             trade_client.submit_order(order_data=order)
     else:
         print(f"Insufficient Budget per stock: ${budget_per_stock:}")
-    

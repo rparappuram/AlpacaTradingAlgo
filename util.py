@@ -13,7 +13,8 @@ def calculate_atr(symbol: str) -> float:
     """
     data = get_historical_data(
         symbol,
-        datetime.datetime.now() - datetime.timedelta(days=ATR_PERIOD + DATA_RETRIEVAL_PERIOD),
+        datetime.datetime.now()
+        - datetime.timedelta(days=ATR_PERIOD + DATA_RETRIEVAL_PERIOD),
     )
     tr = pd.DataFrame()
     tr["h-l"] = data["high"] - data["low"]
@@ -30,7 +31,8 @@ def calculate_rsi(symbol: str) -> float:
     """
     data = get_historical_data(
         symbol,
-        datetime.datetime.now() - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
+        datetime.datetime.now()
+        - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
     )
     delta = data["close"].diff()
     gain = delta.where(delta > 0, 0)
