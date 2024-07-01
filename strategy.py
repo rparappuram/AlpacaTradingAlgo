@@ -84,7 +84,7 @@ def sell_stocks():
 
 def place_trailing_stop():
     """
-    Place a sell trailing stop order for all open positions
+    Place a sell trailing stop loss order for all positions
     """
     print("TRAILING STOP ORDERS" + "-" * 100)
     positions = trade_client.get_all_positions()
@@ -133,17 +133,18 @@ def buy_stocks():
     available_buying_power *= 0.9  # Keep 10% as reserve
     budget_per_stock = available_buying_power / len(eligible_stocks)
     budget_per_stock = round(budget_per_stock, 2)
-    if budget_per_stock <= 0:
+    if budget_per_stock > 1.0:
+        for stock in eligible_stocks:
+            current_price = get_current_price(stock)
+            order = OrderRequest(
+                symbol=stock,
+                notional=budget_per_stock,
+                side=OrderSide.BUY,
+                type=OrderType.MARKET,
+                time_in_force=TimeInForce.DAY,
+            )
+            print(f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}")
+            trade_client.submit_order(order_data=order)
+    else:
         print(f"Insufficient Budget per stock: ${budget_per_stock:}")
-        return
-    for stock in eligible_stocks:
-        current_price = get_current_price(stock)
-        order = OrderRequest(
-            symbol=stock,
-            notional=budget_per_stock,
-            side=OrderSide.BUY,
-            type=OrderType.MARKET,
-            time_in_force=TimeInForce.DAY,
-        )
-        print(f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}")
-        trade_client.submit_order(order_data=order)
+    
