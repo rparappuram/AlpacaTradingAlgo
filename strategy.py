@@ -38,8 +38,9 @@ def sell_stocks():
             after=datetime.datetime.now() - datetime.timedelta(days=1),
         )
         existing_orders = trade_client.get_orders(filter=filter)
+        filled_trailing_stop_symbols = set()
         for order in existing_orders:
-            if order.type == OrderType.TRAILING_STOP:
+            if order.type == OrderType.TRAILING_STOP and symbol not in filled_trailing_stop_symbols:
                 time_filled_at = order.filled_at.astimezone(timezone("US/Eastern"))
                 print(
                     f"Trailing stop order filled at {time_filled_at} for {order.symbol} {order.qty}"
@@ -55,6 +56,7 @@ def sell_stocks():
                     f"Selling {qty} of {symbol} at ${current_price:.2f} due to FILLED trailing stop order"
                 )
                 trade_client.submit_order(order_data=order)
+                filled_trailing_stop_symbols.add(symbol)
 
         # Main selling logic:
         # 1. Check if RSI is above the upper threshold
