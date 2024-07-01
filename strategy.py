@@ -6,15 +6,12 @@ from alpaca.trading.requests import (
     GetOrdersRequest,
 )
 from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, QueryOrderStatus
-from util import get_historical_data, calculate_rsi, calculate_atr
+from util import calculate_rsi, calculate_atr, get_current_price
 from config import (
     trade_client,
     STOCKS,
-    RSI_PERIOD,
-    DATA_RETRIEVAL_PERIOD,
     RSI_LOWER,
     RSI_UPPER,
-    ATR_PERIOD,
     ATR_MULTIPLIER,
 )
 
@@ -29,15 +26,11 @@ def sell_stocks():
     for position in positions:
         symbol = position.symbol
         qty = float(position.qty)
-        data = get_historical_data(
-            symbol,
-            datetime.datetime.now()
-            - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
-        )
-        rsi = calculate_rsi(data["close"])
-        current_price = data["close"].iloc[-1]
+        current_price = get_current_price(symbol)
 
-        # Close position if trailing stop order has been filled in last 24 hours
+        # Pre-selling checks:
+        # 1. Check if there is a FILLED trailing stop order in the last 24 hours
+        # 2. Close the position because it's not profitable
         filter = GetOrdersRequest(
             symbols=[symbol],
             status=QueryOrderStatus.CLOSED,
@@ -63,8 +56,12 @@ def sell_stocks():
                 )
                 trade_client.submit_order(order_data=order)
 
+        # Main selling logic:
+        # 1. Check if RSI is above the upper threshold
+        # 2. If so, cancel all open (sell trailing stop) orders and close the position
+        rsi = calculate_rsi(symbol)
         if rsi > RSI_UPPER:
-            # Cancel all open orders
+            # Cancel all open (sell trailing stop) orders
             filter = GetOrdersRequest(
                 symbols=[symbol], status="open", side=OrderSide.SELL
             )
@@ -106,18 +103,11 @@ def place_trailing_stop():
         # Place a new trailing stop order for the remaining quantities
         qty_to_cover = int(qty - trailing_stop_order_qty)
         if qty_to_cover > 0:
-            data = get_historical_data(
-                symbol,
-                datetime.datetime.now()
-                - datetime.timedelta(days=ATR_PERIOD + DATA_RETRIEVAL_PERIOD),
-            )
-            atr = calculate_atr(data)
-            trailing_stop_percent = atr * ATR_MULTIPLIER
             order = TrailingStopOrderRequest(
                 symbol=symbol,
                 qty=qty_to_cover,
                 side=OrderSide.SELL,
-                trail_percent=trailing_stop_percent,
+                trail_percent=calculate_atr(symbol) * ATR_MULTIPLIER,
                 time_in_force=TimeInForce.GTC,
             )
             print(f"Placing trailing stop order for {qty_to_cover} of {symbol}")
@@ -134,19 +124,7 @@ def buy_stocks():
     print(f"Available buying power: ${available_buying_power:.2f}")
 
     # Check stocks to buy
-    eligible_stocks = []
-    for stock in STOCKS:
-        prices = get_historical_data(
-            stock,
-            datetime.datetime.now()
-            - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
-        )
-        rsi = calculate_rsi(prices["close"])
-
-        # print(f"RSI for {stock}: {rsi}")
-
-        if rsi < RSI_LOWER:
-            eligible_stocks.append(stock)
+    eligible_stocks = [stock for stock in STOCKS if calculate_rsi(stock) < RSI_LOWER]
     print(f"Eligible stocks to buy: {eligible_stocks}")
     if not eligible_stocks:
         return  # No buying opportunity
@@ -159,14 +137,7 @@ def buy_stocks():
         print(f"Insufficient Budget per stock: ${budget_per_stock:}")
         return
     for stock in eligible_stocks:
-        # Get current price
-        prices = get_historical_data(
-            stock,
-            datetime.datetime.now() - datetime.timedelta(days=DATA_RETRIEVAL_PERIOD),
-        )
-        current_price = prices["close"].iloc[-1]
-
-        # Place order
+        current_price = get_current_price(stock)
         order = OrderRequest(
             symbol=stock,
             notional=budget_per_stock,

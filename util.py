@@ -4,29 +4,35 @@ from alpaca.data.requests import (
 )
 import pandas as pd
 from alpaca.data.timeframe import TimeFrame
-from config import data_client, RSI_PERIOD
+from config import data_client, RSI_PERIOD, DATA_RETRIEVAL_PERIOD, ATR_PERIOD
 
 
-def calculate_atr(data: pd.DataFrame, n: int = 7) -> pd.Series:
+def calculate_atr(symbol: str) -> float:
     """
     Calculate the Average True Range (ATR) for a given stock
     """
-    high_low = data["high"] - data["low"]
-    high_close = (data["high"] - data["close"].shift()).abs()
-    low_close = (data["low"] - data["close"].shift()).abs()
+    data = get_historical_data(
+        symbol,
+        datetime.datetime.now() - datetime.timedelta(days=ATR_PERIOD + DATA_RETRIEVAL_PERIOD),
+    )
+    tr = pd.DataFrame()
+    tr["h-l"] = data["high"] - data["low"]
+    tr["h-pc"] = abs(data["high"] - data["close"].shift())
+    tr["l-pc"] = abs(data["low"] - data["close"].shift())
+    tr["tr"] = tr[["h-l", "h-pc", "l-pc"]].max(axis=1)
+    atr = tr["tr"].rolling(window=ATR_PERIOD).mean()
+    return atr.iloc[-1]
 
-    ranges = pd.concat([high_low, high_close, low_close], axis=1)
-    true_range = ranges.max(axis=1)
 
-    atr = true_range.rolling(window=n).mean()
-    return atr
-
-
-def calculate_rsi(prices: pd.Series) -> float:
+def calculate_rsi(symbol: str) -> float:
     """
     Calculate the Relative Strength Index (RSI) for a given stock
     """
-    delta = prices.diff()
+    data = get_historical_data(
+        symbol,
+        datetime.datetime.now() - datetime.timedelta(days=RSI_PERIOD + DATA_RETRIEVAL_PERIOD),
+    )
+    delta = data["close"].diff()
     gain = delta.where(delta > 0, 0)
     loss = -delta.where(delta < 0, 0)
 
@@ -35,7 +41,6 @@ def calculate_rsi(prices: pd.Series) -> float:
 
     rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
-
     return rsi.iloc[-1]
 
 
@@ -56,3 +61,14 @@ def get_historical_data(
     )
     bars = data_client.get_stock_bars(request_params)
     return bars.df
+
+
+def get_current_price(symbol: str) -> float:
+    """
+    Get the current price of a stock
+    """
+    data = get_historical_data(
+        symbol,
+        datetime.datetime.now() - datetime.timedelta(minutes=20),
+    )
+    return data["close"].iloc[-1]
