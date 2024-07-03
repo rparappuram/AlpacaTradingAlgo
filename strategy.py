@@ -95,18 +95,8 @@ def place_trailing_stop():
     positions = trade_client.get_all_positions()
     for position in positions:
         symbol = position.symbol
-        qty = float(position.qty)
-        filter = GetOrdersRequest(symbols=[symbol], status="open", side=OrderSide.SELL)
-        existing_orders = trade_client.get_orders(filter=filter)
-
-        # Check if there is already a trailing stop order for all quantities
-        trailing_stop_order_qty = 0.0
-        for order in existing_orders:
-            if order.type == OrderType.TRAILING_STOP:
-                trailing_stop_order_qty += float(order.qty)
-
-        # Place a new trailing stop order for the remaining quantities
-        qty_to_cover = int(qty - trailing_stop_order_qty)
+        available_qty = float(position.qty_available)
+        qty_to_cover = int(available_qty)
         if qty_to_cover > 0:
             order = TrailingStopOrderRequest(
                 symbol=symbol,
