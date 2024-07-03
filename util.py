@@ -71,6 +71,6 @@ def get_current_price(symbol: str) -> float:
     """
     data = get_historical_data(
         symbol,
-        datetime.datetime.now() - datetime.timedelta(hours=1),
+        datetime.datetime.now() - datetime.timedelta(days=1),
     )
     return data["close"].iloc[-1]
