@@ -1,3 +1,4 @@
+import logging
 import datetime
 from pytz import timezone
 from alpaca.trading.requests import (
@@ -6,6 +7,7 @@ from alpaca.trading.requests import (
     GetOrdersRequest,
 )
 from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, QueryOrderStatus
+from alpaca.common.exceptions import APIError
 from util import calculate_rsi, calculate_atr, get_current_price
 from config import (
     trade_client,
@@ -16,11 +18,14 @@ from config import (
 )
 
 
+logger = logging.getLogger()
+
+
 def sell_stocks():
     """
     Sell stocks based on the RSI indicator
     """
-    print("SELLING STOCKS" + "-" * 100)
+    logger.info("SELLING STOCKS" + "-" * 100)
 
     positions = trade_client.get_all_positions()
     for position in positions:
@@ -45,7 +50,7 @@ def sell_stocks():
                 and symbol not in filled_trailing_stop_symbols
             ):
                 time_filled_at = order.filled_at.astimezone(timezone("US/Eastern"))
-                print(
+                logger.info(
                     f"Trailing stop order filled at {time_filled_at} for {order.symbol} {order.qty}"
                 )
                 order = OrderRequest(
@@ -55,7 +60,7 @@ def sell_stocks():
                     type=OrderType.MARKET,
                     time_in_force=TimeInForce.DAY,
                 )
-                print(
+                logger.info(
                     f"Selling {qty} of {symbol} at ${current_price:.2f} due to FILLED trailing stop order"
                 )
                 trade_client.submit_order(order_data=order)
@@ -72,7 +77,7 @@ def sell_stocks():
             )
             existing_orders = trade_client.get_orders(filter=filter)
             for order in existing_orders:
-                print(f"Cancelling order: {order.symbol} {order.qty} {order.type}")
+                logger.info(f"Cancelling order: {order.symbol} {order.qty} {order.type}")
                 trade_client.cancel_order_by_id(order.id)
 
             # Close the position
@@ -83,7 +88,7 @@ def sell_stocks():
                 type=OrderType.MARKET,
                 time_in_force=TimeInForce.DAY,
             )
-            print(f"Selling {qty} of {symbol} at ${current_price:.2f}")
+            logger.info(f"Selling {qty} of {symbol} at ${current_price:.2f}")
             trade_client.submit_order(order_data=order)
 
 
@@ -91,7 +96,7 @@ def place_trailing_stop():
     """
     Place a sell trailing stop loss order for all positions
     """
-    print("TRAILING STOP ORDERS" + "-" * 100)
+    logger.info("TRAILING STOP ORDERS" + "-" * 100)
     positions = trade_client.get_all_positions()
     for position in positions:
         symbol = position.symbol
@@ -105,22 +110,27 @@ def place_trailing_stop():
                 trail_percent=calculate_atr(symbol) * ATR_MULTIPLIER,
                 time_in_force=TimeInForce.GTC,
             )
-            print(f"Placing trailing stop order for {qty_to_cover} of {symbol}")
-            trade_client.submit_order(order_data=order)
-
+            logger.info(f"Placing trailing stop order for {qty_to_cover} of {symbol}")
+            try:
+                trade_client.submit_order(order_data=order)
+            except APIError as e:
+                if "pattern day trading" in str(e).lower():
+                    logger.info(f"Pattern day trading protection triggered for {symbol}")
+                else:
+                    raise e
 
 def buy_stocks():
     """
     Buy stocks based on the RSI indicator
     """
-    print("BUYING STOCKS" + "-" * 100)
+    logger.info("BUYING STOCKS" + "-" * 100)
     account = trade_client.get_account()
     available_buying_power = float(account.buying_power)
-    print(f"Available buying power: ${available_buying_power:.2f}")
+    logger.info(f"Available buying power: ${available_buying_power:.2f}")
 
     # Check stocks to buy
     eligible_stocks = [stock for stock in STOCKS if calculate_rsi(stock) < RSI_LOWER]
-    print(f"Eligible stocks to buy: {eligible_stocks}")
+    logger.info(f"Eligible stocks to buy: {eligible_stocks}")
     if not eligible_stocks:
         return  # No buying opportunity
 
@@ -138,7 +148,7 @@ def buy_stocks():
                 type=OrderType.MARKET,
                 time_in_force=TimeInForce.DAY,
             )
-            print(f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}")
+            logger.info(f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}")
             trade_client.submit_order(order_data=order)
     else:
-        print(f"Insufficient Budget per stock: ${budget_per_stock:}")
+        logger.info(f"Insufficient Budget per stock: ${budget_per_stock:}")

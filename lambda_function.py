@@ -1,8 +1,14 @@
+import logging
 from dotenv import load_dotenv
+from strategy import sell_stocks, place_trailing_stop, buy_stocks
+from slack_logger import get_slack_handler
 
 load_dotenv()
-from strategy import sell_stocks, place_trailing_stop, buy_stocks
 
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+slack_handler = get_slack_handler()
+logger.addHandler(slack_handler)
 
 def lambda_handler(event, context):
     """
