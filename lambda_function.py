@@ -5,11 +5,14 @@ from slack_logger import get_slack_handler
 
 load_dotenv()
 
+# Set up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 slack_handler = get_slack_handler()
 logger.addHandler(slack_handler)
 
+
+# Lambda handler function
 def lambda_handler(event, context):
     """
     Lambda handler function

@@ -77,7 +77,9 @@ def sell_stocks():
             )
             existing_orders = trade_client.get_orders(filter=filter)
             for order in existing_orders:
-                logger.info(f"Cancelling order: {order.symbol} {order.qty} {order.type}")
+                logger.info(
+                    f"Cancelling order: {order.symbol} {order.qty} {order.type}"
+                )
                 trade_client.cancel_order_by_id(order.id)
 
             # Close the position
@@ -115,9 +117,12 @@ def place_trailing_stop():
                 trade_client.submit_order(order_data=order)
             except APIError as e:
                 if "pattern day trading" in str(e).lower():
-                    logger.info(f"Pattern day trading protection triggered for {symbol}")
+                    logger.info(
+                        f"Pattern day trading protection triggered for {symbol}"
+                    )
                 else:
                     raise e
+
 
 def buy_stocks():
     """
@@ -148,7 +153,13 @@ def buy_stocks():
                 type=OrderType.MARKET,
                 time_in_force=TimeInForce.DAY,
             )
-            logger.info(f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}")
+            logger.info(
+                f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}"
+            )
             trade_client.submit_order(order_data=order)
     else:
         logger.info(f"Insufficient Budget per stock: ${budget_per_stock:}")
+
+    # Log account portfolio
+    account = trade_client.get_account()
+    logger.info(f"Total Equity: ${account.equity}")
