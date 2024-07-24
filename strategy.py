@@ -156,7 +156,13 @@ def buy_stocks():
             logger.info(
                 f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}"
             )
-            trade_client.submit_order(order_data=order)
+            try:
+                trade_client.submit_order(order_data=order)
+            except APIError as e:
+                if "pattern day trading" in str(e).lower():
+                    logger.info(f"Pattern day trading protection triggered for {stock}")
+                else:
+                    raise e
     else:
         logger.info(f"Insufficient Budget per stock: ${budget_per_stock:}")
 
