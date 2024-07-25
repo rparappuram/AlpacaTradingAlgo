@@ -1,7 +1,11 @@
 import logging
 import os
+from dotenv import load_dotenv
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+from io import StringIO
+
+load_dotenv()
 
 
 class SlackHandler(logging.Handler):
@@ -9,15 +13,21 @@ class SlackHandler(logging.Handler):
         logging.Handler.__init__(self)
         self.client = WebClient(token=slack_token)
         self.channel = slack_channel
+        self.log_capture_string = StringIO()
 
     def emit(self, record):
         log_entry = self.format(record)
-        try:
-            response = self.client.chat_postMessage(
-                channel=self.channel, text=log_entry
-            )
-        except SlackApiError as e:
-            print(f"Error sending log to Slack: {e.response['error']}")
+        self.log_capture_string.write(log_entry + "\n")
+
+    def send_logs_to_slack(self):
+        log_contents = self.log_capture_string.getvalue()
+        if log_contents:
+            try:
+                response = self.client.chat_postMessage(
+                    channel=self.channel, text=log_contents
+                )
+            except SlackApiError as e:
+                print(f"Error sending log to Slack: {e.response['error']}")
 
 
 def get_slack_handler():

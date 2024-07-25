@@ -8,6 +8,15 @@ load_dotenv()
 # Set up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+# Stream handler for logging to STDOUT
+stream_handler = logging.StreamHandler()
+stream_handler.setLevel(logging.INFO)
+stream_formatter = logging.Formatter("%(message)s")
+stream_handler.setFormatter(stream_formatter)
+logger.addHandler(stream_handler)
+
+# Slack handler for capturing logs and sending them to Slack
 slack_handler = get_slack_handler()
 logger.addHandler(slack_handler)
 
@@ -17,14 +26,17 @@ def lambda_handler(event, context):
     """
     Lambda handler function
     """
-    sell_stocks()
-    place_trailing_stop()
-    buy_stocks()
+    try:
+        sell_stocks()
+        place_trailing_stop()
+        buy_stocks()
 
-    return {
-        "statusCode": 200,
-        "body": "Trading strategy executed successfully",
-    }
+        return {
+            "statusCode": 200,
+            "body": "Trading strategy executed successfully",
+        }
+    finally:
+        slack_handler.send_logs_to_slack()
 
 
 if __name__ == "__main__":
