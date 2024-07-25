@@ -7,7 +7,7 @@ from alpaca.data.timeframe import TimeFrame
 from config import data_client, RSI_PERIOD, DATA_RETRIEVAL_PERIOD, ATR_PERIOD
 
 
-def calculate_atr(symbol: str) -> float:
+def calculate_atr_percentage(symbol: str) -> float:
     """
     Calculate the Average True Range (ATR) for a given stock
     """
@@ -22,7 +22,10 @@ def calculate_atr(symbol: str) -> float:
     tr["l-pc"] = abs(data["low"] - data["close"].shift())
     tr["tr"] = tr[["h-l", "h-pc", "l-pc"]].max(axis=1)
     atr = tr["tr"].rolling(window=ATR_PERIOD).mean()
-    return atr.iloc[-1]
+    latest_atr = atr.iloc[-1]
+    latest_close = data["close"].iloc[-1]
+    atr_percentage = (latest_atr / latest_close) * 100
+    return atr_percentage
 
 
 def calculate_rsi(symbol: str) -> float:

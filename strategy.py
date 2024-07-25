@@ -8,7 +8,7 @@ from alpaca.trading.requests import (
 )
 from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, QueryOrderStatus
 from alpaca.common.exceptions import APIError
-from util import calculate_rsi, calculate_atr, get_current_price
+from util import calculate_rsi, calculate_atr_percentage, get_current_price
 from config import (
     trade_client,
     STOCKS,
@@ -104,12 +104,13 @@ def place_trailing_stop():
         symbol = position.symbol
         available_qty = float(position.qty_available)
         qty_to_cover = int(available_qty)
+        trail_percent = calculate_atr_percentage(symbol) * ATR_MULTIPLIER
         if qty_to_cover > 0:
             order = TrailingStopOrderRequest(
                 symbol=symbol,
                 qty=qty_to_cover,
                 side=OrderSide.SELL,
-                trail_percent=calculate_atr(symbol) * ATR_MULTIPLIER,
+                trail_percent=trail_percent,
                 time_in_force=TimeInForce.GTC,
             )
             logger.info(f"Placing trailing stop order for {qty_to_cover} of {symbol}")
