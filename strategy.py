@@ -7,8 +7,12 @@ from alpaca.trading.requests import (
     GetOrdersRequest,
 )
 from alpaca.trading.enums import OrderSide, OrderType, TimeInForce, QueryOrderStatus
-from alpaca.common.exceptions import APIError
-from util import calculate_rsi, calculate_atr_percentage, get_current_price
+from util import (
+    calculate_rsi,
+    calculate_atr_percentage,
+    get_current_price,
+    submit_order,
+)
 from config import (
     trade_client,
     STOCKS,
@@ -63,7 +67,7 @@ def sell_stocks():
                 logger.info(
                     f"Selling {qty} of {symbol} at ${current_price:.2f} due to FILLED trailing stop order"
                 )
-                trade_client.submit_order(order_data=order)
+                submit_order(order)
                 filled_trailing_stop_symbols.add(symbol)
 
         # Main selling logic:
@@ -91,7 +95,7 @@ def sell_stocks():
                 time_in_force=TimeInForce.DAY,
             )
             logger.info(f"Selling {qty} of {symbol} at ${current_price:.2f}")
-            trade_client.submit_order(order_data=order)
+            submit_order(order)
 
 
 def place_trailing_stop():
@@ -114,15 +118,7 @@ def place_trailing_stop():
                 time_in_force=TimeInForce.GTC,
             )
             logger.info(f"Placing trailing stop order for {qty_to_cover} of {symbol}")
-            try:
-                trade_client.submit_order(order_data=order)
-            except APIError as e:
-                if "pattern day trading" in str(e).lower():
-                    logger.info(
-                        f"Pattern day trading protection triggered for {symbol}"
-                    )
-                else:
-                    raise e
+            submit_order(order)
 
 
 def buy_stocks():
@@ -157,13 +153,7 @@ def buy_stocks():
             logger.info(
                 f"Buying ${budget_per_stock} of {stock} at ${current_price:.2f}"
             )
-            try:
-                trade_client.submit_order(order_data=order)
-            except APIError as e:
-                if "pattern day trading" in str(e).lower():
-                    logger.info(f"Pattern day trading protection triggered for {stock}")
-                else:
-                    raise e
+            submit_order(order)
     else:
         logger.info(f"Insufficient Budget per stock: ${budget_per_stock:}")
 

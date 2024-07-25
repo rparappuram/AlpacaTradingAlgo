@@ -1,10 +1,23 @@
 import datetime
+import logging
 from alpaca.data.requests import (
     StockBarsRequest,
 )
+from alpaca.trading.requests import (
+    OrderRequest,
+)
 import pandas as pd
 from alpaca.data.timeframe import TimeFrame
-from config import data_client, RSI_PERIOD, DATA_RETRIEVAL_PERIOD, ATR_PERIOD
+from alpaca.common.exceptions import APIError
+from config import (
+    trade_client,
+    data_client,
+    RSI_PERIOD,
+    DATA_RETRIEVAL_PERIOD,
+    ATR_PERIOD,
+)
+
+logger = logging.getLogger()
 
 
 def calculate_atr_percentage(symbol: str) -> float:
@@ -77,3 +90,16 @@ def get_current_price(symbol: str) -> float:
         datetime.datetime.now() - datetime.timedelta(days=1),
     )
     return data["close"].iloc[-1]
+
+
+def submit_order(order: OrderRequest):
+    """
+    Submit an order
+    """
+    try:
+        trade_client.submit_order(order_data=order)
+    except APIError as e:
+        if "pattern day trading" in str(e).lower():
+            logger.info(f"Pattern day trading protection triggered for {order.symbol}")
+        else:
+            raise e
