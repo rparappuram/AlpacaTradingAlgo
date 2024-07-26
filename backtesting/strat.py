@@ -1,7 +1,7 @@
 import yfinance as yf
 import backtrader as bt
 
-from config import *
+from parameters import *
 
 
 class SwingStrategy(bt.Strategy):
@@ -10,12 +10,6 @@ class SwingStrategy(bt.Strategy):
         self.params.rsi_upper = kwargs.get("rsi_upper", RSI_UPPER)
         self.params.rsi_lower = kwargs.get("rsi_lower", RSI_LOWER)
         self.params.atr_period = kwargs.get("atr_period", ATR_PERIOD)
-        self.params.atr_loose_multiplier = kwargs.get(
-            "atr_loose_multiplier", ATR_LOOSE_MULTIPLIER
-        )
-        self.params.atr_strict_multiplier = kwargs.get(
-            "atr_strict_multiplier", ATR_STRICT_MULTIPLIER
-        )
         self.params.backtesting = kwargs.get("backtesting", False)
 
         self.rsi = {

@@ -5,9 +5,10 @@ import traceback
 import backtrader as bt
 import pandas as pd
 import yfinance as yf
+import numpy as np
 
-from strategy import SwingStrategy
-from config import *
+from bollinger_strategy import BollingerBandsRSI
+from parameters import *
 
 
 class Backtester:
@@ -80,7 +81,7 @@ class Backtester:
                 params = {
                     key: value for key, value in zip(fieldnames[:-1], combination)
                 }
-                cerebro.addstrategy(SwingStrategy, **params, backtesting=True)
+                cerebro.addstrategy(BollingerBandsRSI, **params, backtesting=True)
                 cerebro.run()
 
                 d = {key: value for key, value in zip(fieldnames, combination)}
@@ -112,5 +113,14 @@ class Backtester:
 
 
 backtester = Backtester()
-backtester.finetune()
+backtester.finetune(
+    bollinger_period=[10, 14, 21, 28, 30, 40, 50],
+    bollinger_std=[0.5, 0.8, 1, 1.2, 1.5, 2],
+    bollinger_width_threshold=[0.03, 0.04, 0.05, 0.06, 0.07, 0.08],
+    # rsi_period = [7, 14, 21],
+    rsi_upper=[60, 65, 70, 75, 80],
+    rsi_lower=[25, 30, 35, 40],
+    # atr_period = [7, 14, 21],
+    atr_multiplier=[0.5, 0.8, 1, 1.2, 1.5, 2],
+)
 backtester.analyze_parameters()
