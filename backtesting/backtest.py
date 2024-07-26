@@ -14,7 +14,7 @@ from parameters import *
 class Backtester:
     def finetune(self, **kwargs):
         print("=" * 80)
-        print(f"""BacktestFineTuner with parameters:""")
+        print("BacktestFineTuner with parameters:")
         for key, value in kwargs.items():
             setattr(self, key, value)
             print(f"{key} = {value}")
