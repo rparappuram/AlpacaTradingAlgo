@@ -114,13 +114,14 @@ class Backtester:
 
 backtester = Backtester()
 backtester.finetune(
-    bollinger_period=[10, 14, 21, 28, 30, 40, 50],
-    bollinger_std=[0.5, 0.8, 1, 1.2, 1.5, 2],
-    bollinger_width_threshold=[0.03, 0.04, 0.05, 0.06, 0.07, 0.08],
-    # rsi_period = [7, 14, 21],
-    rsi_upper=[60, 65, 70, 75, 80],
-    rsi_lower=[25, 30, 35, 40],
-    # atr_period = [7, 14, 21],
-    atr_multiplier=[0.5, 0.8, 1, 1.2, 1.5, 2],
+    # bollinger_period=[10, 14],
+    # bollinger_std=[0.5, 0.8, 1, 1.2, 1.5],
+    # bollinger_width_threshold=[.07, .08],
+    # rsi_period = [7, 14],
+    # rsi_upper=[60, 65, 70, 75, 80],
+    # rsi_lower=[25, 30, 35],
+    # atr_period = [7, 14],
+    # atr_multiplier=[1.5, 2],
+    cash_multiplier=[0.1, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.75, 0.8, 0.9],
 )
 backtester.analyze_parameters()

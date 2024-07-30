@@ -16,6 +16,7 @@ class BollingerBandsRSI(bt.Strategy):
         self.params.rsi_lower = kwargs.get("rsi_lower", RSI_LOWER)
         self.params.atr_period = kwargs.get("atr_period", ATR_PERIOD)
         self.params.atr_multiplier = kwargs.get("atr_multiplier", ATR_MULTIPLER)
+        self.params.cash_multiplier = kwargs.get("cash_multiplier", CASH_MULTIPLIER)
         self.params.backtesting = kwargs.get("backtesting", False)
         for data in self.datas:
             self.bb = bt.indicators.BollingerBands(
@@ -45,6 +46,7 @@ class BollingerBandsRSI(bt.Strategy):
                     data=order.data,
                     exectype=bt.Order.StopTrail,
                     trailpercent=trail_percent,
+                    size=order.executed.size,
                 )
                 self.log(
                     f"Trailing stop set for {order.data._name} at {(trail_percent*100):.2f}%"
@@ -56,7 +58,6 @@ class BollingerBandsRSI(bt.Strategy):
 
     def next(self):
         positions = self.getpositions()
-        to_sell = []
         for data, pos in list(positions.items()):
             if pos.size:
                 # Previous candle conditions
@@ -75,7 +76,7 @@ class BollingerBandsRSI(bt.Strategy):
                     and is_current_close_below_prev_low
                     and is_bb_width_greater_than_threshold
                 ):
-                    self.sell(data=data)
+                    self.close(data)
 
         # Step 2: check BUY signal
         to_buy = []
@@ -96,10 +97,12 @@ class BollingerBandsRSI(bt.Strategy):
                 and is_bb_width_greater_than_threshold
             ):
                 to_buy.append(data)
+        if to_buy:
+            self.log(f"Stocks to buy: {', '.join([data._name for data in to_buy])}")
 
         # Dynamically adjust the budget per stock
         cash = self.broker.get_cash()
-        budget = cash * 0.9  # keep 10% as reserve
+        budget = cash * self.params.cash_multiplier
         num_affordable_stocks = len(to_buy)
         affordable_stocks = []
         for data in to_buy:
@@ -139,7 +142,6 @@ def run():
         start=START_DATE,
         interval="1d",
     )
-    data = data.dropna(axis=1)
 
     # add data to cerebro
     if type(TICKERS) == str:
@@ -148,6 +150,7 @@ def run():
         cerebro.adddata(feed, name=ticker)
     else:
         for ticker in TICKERS:
+            # data = data.dropna(axis=1)
             df = data.loc[:, (slice(None), ticker)].copy()
             df.columns = df.columns.droplevel(1)
             feed = bt.feeds.PandasData(dataname=df)
