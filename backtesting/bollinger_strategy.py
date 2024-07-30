@@ -18,6 +18,9 @@ class BollingerBandsRSI(bt.Strategy):
         self.params.atr_multiplier = kwargs.get("atr_multiplier", ATR_MULTIPLER)
         self.params.cash_multiplier = kwargs.get("cash_multiplier", CASH_MULTIPLIER)
         self.params.backtesting = kwargs.get("backtesting", False)
+
+        self.sell_reasons = {}  # Dictionary to store sell reasons
+
         for data in self.datas:
             self.bb = bt.indicators.BollingerBands(
                 data,
@@ -25,8 +28,8 @@ class BollingerBandsRSI(bt.Strategy):
                 devfactor=self.params.bollinger_std,
             )
             self.bb_width = (self.bb.lines.top - self.bb.lines.bot) / self.bb.lines.mid
-            self.rsi = bt.indicators.RSI(data, period=self.params.rsi_period)
-            self.atr = bt.indicators.ATR(data, period=self.params.atr_period)
+            self.rsi = bt.indicators.RSI(data, period=self.params.rsi_period, plot=False)
+            self.atr = bt.indicators.ATR(data, period=self.params.atr_period, plot=False)
 
     def log(self, txt):
         if not self.params.backtesting:
@@ -42,18 +45,20 @@ class BollingerBandsRSI(bt.Strategy):
                     ((self.atr[0] / self.data.close[0]) * 100)
                     * self.params.atr_multiplier
                 ) / 100
-                self.sell(
+                order = self.sell(
                     data=order.data,
                     exectype=bt.Order.StopTrail,
                     trailpercent=trail_percent,
                     size=order.executed.size,
                 )
+                self.sell_reasons[order.ref] = "Trailing Stop"
                 self.log(
                     f"Trailing stop set for {order.data._name} at {(trail_percent*100):.2f}%"
                 )
             elif order.issell():
+                reason = self.sell_reasons.pop(order.ref, "Unknown")
                 self.log(
-                    f"SOLD {order.data._name}, Price: ${order.executed.price:.2f}, Size: {order.executed.size}"
+                    f"SOLD {order.data._name}, Price: ${order.executed.price:.2f}, Size: {order.executed.size}, Reason: {reason}"
                 )
 
     def next(self):
@@ -74,9 +79,10 @@ class BollingerBandsRSI(bt.Strategy):
                     and is_prev_candle_close_above_upper_band
                     and is_prev_rsi_above_threshold
                     and is_current_close_below_prev_low
-                    and is_bb_width_greater_than_threshold
+                    # and is_bb_width_greater_than_threshold
                 ):
-                    self.close(data)
+                    order = self.close(data)
+                    self.sell_reasons[order.ref] = "Close Position"
 
         # Step 2: check BUY signal
         to_buy = []
@@ -94,11 +100,9 @@ class BollingerBandsRSI(bt.Strategy):
                 is_prev_candle_close_below_lower_band
                 and is_prev_rsi_below_threshold
                 and is_current_close_above_prev_high
-                and is_bb_width_greater_than_threshold
+                # and is_bb_width_greater_than_threshold
             ):
                 to_buy.append(data)
-        if to_buy:
-            self.log(f"Stocks to buy: {', '.join([data._name for data in to_buy])}")
 
         # Dynamically adjust the budget per stock
         cash = self.broker.get_cash()
@@ -113,6 +117,7 @@ class BollingerBandsRSI(bt.Strategy):
                 num_affordable_stocks -= 1
         if not affordable_stocks:
             return
+        self.log(f"Stocks to buy: {', '.join([data._name for data in affordable_stocks])}")
 
         budget_per_stock = budget / num_affordable_stocks
         for data in affordable_stocks:
