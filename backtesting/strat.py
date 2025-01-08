@@ -6,21 +6,42 @@ from parameters import *
 
 class SwingStrategy(bt.Strategy):
     def __init__(self, **kwargs):
+        self.params.bollinger_period = kwargs.get("bollinger_period", BOLLINGER_PERIOD)
+        self.params.bollinger_std = kwargs.get("bollinger_std", BOLLINGER_STD)
+        self.params.bollinger_width_threshold = kwargs.get(
+            "bollinger_width_threshold", BOLLINGER_WIDTH_THRESHOLD
+        )
         self.params.rsi_period = kwargs.get("rsi_period", RSI_PERIOD)
         self.params.rsi_upper = kwargs.get("rsi_upper", RSI_UPPER)
         self.params.rsi_lower = kwargs.get("rsi_lower", RSI_LOWER)
         self.params.atr_period = kwargs.get("atr_period", ATR_PERIOD)
+        self.params.atr_multiplier = kwargs.get("atr_multiplier", ATR_MULTIPLIER)
         self.params.backtesting = kwargs.get("backtesting", False)
 
+        # Initialize indicators
         self.rsi = {
             data: bt.indicators.RSI(data, period=self.params.rsi_period)
             for data in self.datas
         }
-        if self.params.atr_period != 0:
-            self.atr = {
-                data: bt.indicators.ATR(data, period=self.params.atr_period)
-                for data in self.datas
-            }
+        self.atr = {
+            data: bt.indicators.ATR(data, period=self.params.atr_period)
+            for data in self.datas
+        }
+        self.bollinger = {
+            data: bt.indicators.BollingerBands(
+                data,
+                period=self.params.bollinger_period,
+                devfactor=self.params.bollinger_std,
+            )
+            for data in self.datas
+        }
+        self.bollinger_width = {
+            data: (self.bollinger[data].lines.top - self.bollinger[data].lines.bot)
+            / self.bollinger[data].lines.mid
+            for data in self.datas
+        }
+
+        # Initialize order tracking
         self.order_reasons = {}
         self.orders = {data: [] for data in self.datas}
         self.trail_orders = {data: [] for data in self.datas}
@@ -31,116 +52,148 @@ class SwingStrategy(bt.Strategy):
 
     def notify_order(self, order):
         if order.status in [order.Completed]:
+            reason = self.order_reasons.pop(order.ref, "Unknown Reason")
             if order.isbuy():
                 self.log(
-                    f"BOUGHT {order.data._name}, Price: ${order.executed.price:.2f}, Size: {order.executed.size}"
+                    f"BOUGHT {order.data._name}, Price: ${order.executed.price:.2f}, Size: {order.executed.size} due to {reason}"
                 )
             elif order.issell():
-                reason = self.order_reasons.get(order.ref, "Unknown Reason")
                 self.log(
                     f"SOLD {order.data._name}, Price: ${order.executed.price:.2f}, Size: {order.executed.size} due to {reason}"
                 )
-                if order.ref in self.order_reasons:  # Clean up after using the reason
-                    del self.order_reasons[order.ref]
 
     def next(self):
-        # Step 1: Sell if RSI > self.params.rsi_upper
+        # Check positions and decide whether to sell
+        self.handle_sell_signals()
+
+        # Check for buying opportunities
+        self.handle_buy_signals()
+
+    def handle_sell_signals(self):
+        """Handle logic for selling positions."""
         positions = self.getpositions()
         for data, pos in positions.items():
-            if self.orders[data]:
-                new_orders = []
-                for order in self.orders[data]:
-                    if order.status in [
-                        bt.Order.Completed,
-                        bt.Order.Canceled,
-                        bt.Order.Expired,
-                    ]:
-                        continue
-                    new_orders.append(order)
-                self.orders[data] = new_orders
-            if self.trail_orders[data]:
-                new_trail_orders = []
-                for trail_order in self.trail_orders[data]:
-                    if trail_order.status in [
-                        bt.Order.Completed,
-                        bt.Order.Canceled,
-                        bt.Order.Expired,
-                    ]:
-                        continue
-                    new_trail_orders.append(trail_order)
-                self.trail_orders[data] = new_trail_orders
+            # Remove stale orders
+            self.orders[data] = [
+                o
+                for o in self.orders[data]
+                if o.status
+                not in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Expired]
+            ]
+            self.trail_orders[data] = [
+                o
+                for o in self.trail_orders[data]
+                if o.status
+                not in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Expired]
+            ]
 
-            if pos.size:  # Position is open
-                if self.rsi[data] > self.params.rsi_upper:  # Positions should be closed
-                    self.log(
-                        f"Selling {pos.size} shares of {data._name} at {data.close[0]}"
-                    )
-                    # Cancel all orders for this stock
+            if pos.size:  # If there's an open position
+                # Previous candle conditions
+                is_prev_candle_close_above_upper_band = (
+                    data.close[-1] > self.bollinger[data].lines.top[-1]
+                )
+                is_prev_rsi_above_upper_threshold = (
+                    self.rsi[data][-1] > self.params.rsi_upper
+                )
+                # Current candle conditions
+                is_current_rsi_below_lower_threshold = (
+                    self.rsi[data][0] < self.params.rsi_lower
+                )
+                is_current_close_below_prev_low = data.close[0] < data.low[-1]
+                is_bb_width_above_threshold = (
+                    self.bollinger[data].lines.width[0]
+                    > self.params.bollinger_width_threshold
+                )
+
+                if (
+                    is_prev_candle_close_above_upper_band
+                    and is_prev_rsi_above_upper_threshold
+                    and is_current_rsi_below_lower_threshold
+                    and is_current_close_below_prev_low
+                    and is_bb_width_above_threshold
+                ):  # Close position
+                    # Cancel trailing stop orders
                     for trail_order in self.trail_orders[data]:
                         self.cancel(trail_order)
                     self.trail_orders[data] = []
+
+                    # Cancel any open sell orders
                     if self.orders[data]:
                         for order in self.orders[data]:
                             if order.issell():
                                 self.cancel(order)
                         self.orders[data] = []
 
-                    if self.params.atr_period != 0:
-                        atr = self.atr[data]
-                        order = self.sell(
-                            data,
-                            size=pos.size,
-                            exectype=bt.Order.StopTrail,
-                            trailpercent=atr[0] * self.params.atr_strict_multiplier,
-                        )
-                        order_reason = f"RSI Signal with ATR={atr[0]:.4f} Multiplier={self.params.atr_strict_multiplier} Trail Percent={atr[0] * self.params.atr_strict_multiplier:.4f}"
-                    else:
-                        order = self.close(data)
-                        order_reason = "RSI Signal"
-
+                    # Place a market sell order
+                    order = self.close(data)
                     self.orders[data].append(order)
-                    self.order_reasons[order.ref] = order_reason
+                    reason = (
+                        f"RSI: {self.rsi[data][0]:.2f}"
+                        if self.rsi[data] > self.params.rsi_upper
+                        else f"Bollinger: {self.bollinger[data].lines.top[0]:.2f}"
+                    )
+                    self.order_reasons[order.ref] = reason
 
-        # Step 2: Buy if RSI < self.params.rsi_lower
-        # Check stocks to buy
-        eligible_stocks = [
-            data for data in self.datas if self.rsi[data] < self.params.rsi_lower
-        ]
+    def handle_buy_signals(self):
+        """Handle logic for buying stocks."""
+        # Check for buying opportunities
+        eligible_stocks = []
+        for data in self.datas:
+            # Previous candle conditions
+            is_prev_candle_close_below_lower_band = (
+                data.close[-1] < self.bollinger[data].lines.bot[-1]
+            )
+            is_prev_rsi_below_lower_threshold = (
+                self.rsi[data][-1] < self.params.rsi_lower
+            )
+            # Current candle conditions
+            is_current_rsi_above_upper_threshold = (
+                self.rsi[data][0] > self.params.rsi_upper
+            )
+            is_current_close_above_prev_high = data.close[0] > data.high[-1]
+            is_bb_width_above_threshold = (
+                self.bollinger_width[data][0] > self.params.bollinger_width_threshold
+            )
 
-        # Dynamically adjust the budget per stock
-        cash = self.broker.get_cash() * 0.9  # Keep 10% as reserve
+            if (
+                is_prev_candle_close_below_lower_band
+                and is_prev_rsi_below_lower_threshold
+                and is_current_rsi_above_upper_threshold
+                and is_current_close_above_prev_high
+                and is_bb_width_above_threshold
+            ):
+                eligible_stocks.append(data)
+
+        # Dynamically adjust budget per stock
+        cash = self.broker.get_cash() * 0.9  # Reserve 10% of cash
         num_affordable_stocks = len(eligible_stocks)
         affordable_stocks = []
         for data in eligible_stocks:
             budget_per_stock = cash / num_affordable_stocks
-            if data.close[0] <= budget_per_stock:  # affordable
+            if data.close[0] <= budget_per_stock:  # Stock is affordable
                 affordable_stocks.append(data)
-            else:  # not affordable
+            else:  # Stock is not affordable
                 num_affordable_stocks -= 1
         if not affordable_stocks:
-            return  # No buying opportunity
+            return  # No buying opportunities
 
-        # Execute buy orders for affordable stocks
+        # Execute buy orders
         budget_per_stock = cash / len(affordable_stocks)
         for data in affordable_stocks:
             size = int(budget_per_stock / data.close[0])
             if size > 0:
-                # self.log(f"Buying {size} shares of {data._name} at {data.close[0]}")
-
-                if self.params.atr_period != 0:
-                    atr = self.atr[data]
-                    order = self.buy(
-                        data,
-                        size=size,
-                        exectype=bt.Order.StopTrail,
-                        trailpercent=atr[0] * self.params.atr_strict_multiplier,
-                    )
-                else:
-                    order = self.buy(data, size=size)
-
+                # Place buy order
+                order = self.buy(data, size=size)
+                reason = (
+                    f"RSI: {self.rsi[data][0]:.2f}"
+                    if self.rsi[data] < self.params.rsi_lower
+                    else f"Bollinger: {self.bollinger[data].lines.bot[0]:.2f}"
+                )
+                self.order_reasons[order.ref] = reason
                 self.orders[data].append(order)
 
-                trailpercent = self.atr[data][0] * self.params.atr_loose_multiplier
+                # Place sell order with trailing stop
+                trailpercent = self.atr[data][0] * self.params.atr_multiplier
                 trail_order = self.sell(
                     data,
                     size=size,
@@ -148,11 +201,12 @@ class SwingStrategy(bt.Strategy):
                     trailpercent=trailpercent,
                 )
                 self.trail_orders[data].append(trail_order)
-                self.order_reasons[
-                    trail_order.ref
-                ] = f"Trailing Stop {trailpercent:.4f}%"
+                self.order_reasons[trail_order.ref] = (
+                    f"Trailing Stop {trailpercent:.4f}%"
+                )
 
     def stop(self):
+        """Display final results and any open positions."""
         print(f"Final Portfolio Value: ${self.broker.getvalue():.2f}")
         open_positions = [data for data in self.datas if self.getposition(data).size]
         if open_positions:
