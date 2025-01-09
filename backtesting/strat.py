@@ -24,7 +24,7 @@ class SwingStrategy(bt.Strategy):
             for data in self.datas
         }
         self.atr = {
-            data: bt.indicators.ATR(data, period=self.params.atr_period)
+            data: bt.indicators.ATR(data, period=self.params.atr_period, plot=False)
             for data in self.datas
         }
         self.bollinger = {
@@ -53,14 +53,15 @@ class SwingStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status in [order.Completed]:
             reason = self.order_reasons.pop(order.ref, "Unknown Reason")
-            if order.isbuy():
-                self.log(
-                    f"BOUGHT {order.data._name}, Price: ${order.executed.price:.2f}, Size: {order.executed.size} due to {reason}"
-                )
-            elif order.issell():
-                self.log(
-                    f"SOLD {order.data._name}, Price: ${order.executed.price:.2f}, Size: {order.executed.size} due to {reason}"
-                )
+
+            # Create a tabular format for the log
+            action = "BOUGHT" if order.isbuy() else "SOLD"
+            stock_name = order.data._name
+            price = f"${order.executed.price:.2f}"
+            size = f"{order.executed.size}"
+
+            # Log in tabular format
+            self.log(f"{action:<8} {stock_name:<10} {price:<12} {size:<8} {reason}")
 
     def next(self):
         # Check positions and decide whether to sell
@@ -96,22 +97,22 @@ class SwingStrategy(bt.Strategy):
                     self.rsi[data][-1] > self.params.rsi_upper
                 )
                 # Current candle conditions
-                is_current_rsi_below_lower_threshold = (
-                    self.rsi[data][0] < self.params.rsi_lower
+                is_current_rsi_above_upper_threshold = (
+                    self.rsi[data][0] > self.params.rsi_upper
                 )
                 is_current_close_below_prev_low = data.close[0] < data.low[-1]
                 is_bb_width_above_threshold = (
-                    self.bollinger[data].lines.width[0]
+                    self.bollinger_width[data][0]
                     > self.params.bollinger_width_threshold
                 )
 
                 if (
                     is_prev_candle_close_above_upper_band
-                    and is_prev_rsi_above_upper_threshold
-                    and is_current_rsi_below_lower_threshold
+                    # and is_prev_rsi_above_upper_threshold
+                    # and is_current_rsi_above_upper_threshold
                     and is_current_close_below_prev_low
-                    and is_bb_width_above_threshold
-                ):  # Close position
+                    # and is_bb_width_above_threshold
+                ):
                     # Cancel trailing stop orders
                     for trail_order in self.trail_orders[data]:
                         self.cancel(trail_order)
@@ -147,8 +148,8 @@ class SwingStrategy(bt.Strategy):
                 self.rsi[data][-1] < self.params.rsi_lower
             )
             # Current candle conditions
-            is_current_rsi_above_upper_threshold = (
-                self.rsi[data][0] > self.params.rsi_upper
+            is_current_rsi_below_lower_threshold = (
+                self.rsi[data][0] < self.params.rsi_lower
             )
             is_current_close_above_prev_high = data.close[0] > data.high[-1]
             is_bb_width_above_threshold = (
@@ -157,10 +158,10 @@ class SwingStrategy(bt.Strategy):
 
             if (
                 is_prev_candle_close_below_lower_band
-                and is_prev_rsi_below_lower_threshold
-                and is_current_rsi_above_upper_threshold
+                # and is_prev_rsi_below_lower_threshold
+                # and is_current_rsi_below_lower_threshold
                 and is_current_close_above_prev_high
-                and is_bb_width_above_threshold
+                # and is_bb_width_above_threshold
             ):
                 eligible_stocks.append(data)
 
@@ -223,6 +224,7 @@ def run():
     Plots the results.
     """
     cerebro = bt.Cerebro()
+    # cerebro.addobserver(bt.observers.BuySell)
     data = yf.download(
         TICKERS,
         start=START_DATE,
@@ -232,11 +234,15 @@ def run():
     data = data.dropna(axis=1)
 
     # add data to cerebro
-    for ticker in TICKERS:
-        df = data.loc[:, (slice(None), ticker)].copy()
-        df.columns = df.columns.droplevel(1)
-        feed = bt.feeds.PandasData(dataname=df)
-        cerebro.adddata(feed, name=ticker)
+    if isinstance(TICKERS, str):
+        feed = bt.feeds.PandasData(dataname=data)
+        cerebro.adddata(feed, name=TICKERS)
+    else:
+        for ticker in TICKERS:
+            df = data.loc[:, (slice(None), ticker)].copy()
+            df.columns = df.columns.droplevel(1)
+            feed = bt.feeds.PandasData(dataname=df)
+            cerebro.adddata(feed, name=ticker)
     cerebro.broker.set_cash(CASH)
     cerebro.addstrategy(SwingStrategy)
     cerebro.run()
