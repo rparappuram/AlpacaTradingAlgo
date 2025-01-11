@@ -1,3 +1,4 @@
+import datetime
 import yfinance as yf
 import backtrader as bt
 
@@ -46,6 +47,10 @@ class SwingStrategy(bt.Strategy):
         self.orders = {data: [] for data in self.datas}
         self.trail_orders = {data: [] for data in self.datas}
 
+        # Initialize trade statistics
+        self.positive_trades = 0
+        self.negative_trades = 0
+
     def log(self, txt):
         if not self.params.backtesting:
             print(f"{self.datas[0].datetime.date(0)} - {txt}")
@@ -53,6 +58,14 @@ class SwingStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status in [order.Completed]:
             reason = self.order_reasons.pop(order.ref, "Unknown Reason")
+
+            # Check if order is a sell and calculate PnL
+            if order.issell():
+                pnl = order.executed.pnl
+                if pnl > 0:
+                    self.positive_trades += 1
+                elif pnl < 0:
+                    self.negative_trades += 1
 
             # Create a tabular format for the log
             action = "BOUGHT" if order.isbuy() else "SOLD"
@@ -207,15 +220,39 @@ class SwingStrategy(bt.Strategy):
                     self.order_reasons[order.ref] = reason
 
     def stop(self):
-        """Display final results and any open positions."""
-        print(f"Final Portfolio Value: ${self.broker.getvalue():.2f}")
+        """Display detailed final results of the strategy."""
+        # Initial and final portfolio values
+        initial_value = CASH
+        final_value = self.broker.getvalue()
+
+        # Calculate total and annualized percentage return
+        total_return = (final_value - initial_value) / initial_value * 100
+        start_date = datetime.datetime.strptime(START_DATE, "%Y-%m-%d").date()
+        end_date = self.datas[0].datetime.date(0)
+        trading_days = (end_date - start_date).days
+        annualized_return = ((1 + total_return / 100) ** (365 / trading_days) - 1) * 100
+
+        # Display open positions
         open_positions = [data for data in self.datas if self.getposition(data).size]
         if open_positions:
-            self.log(
-                f'Open positions: {", ".join([data._name for data in open_positions])}'
-            )
+            open_positions_list = ", ".join([data._name for data in open_positions])
         else:
-            self.log("No open positions")
+            open_positions_list = "No open positions"
+
+        # Log the results
+        print("\nFinal Results Summary")
+        print("-" * 40)
+        print(f"Initial Portfolio Value: ${initial_value:.2f}")
+        print(f"Final Portfolio Value:   ${final_value:.2f}")
+        print(f"Total Return:            {total_return:.2f}%")
+        print(f"Annualized Return:       {annualized_return:.2f}%")
+        print(f"Positive Trades:         {self.positive_trades}")
+        print(f"Negative Trades:         {self.negative_trades}")
+        print(
+            f"Trading Period:          {start_date} to {end_date} ({trading_days} days)"
+        )
+        print(f"Open Positions:          {open_positions_list}")
+        print("-" * 40)
 
 
 def run():
