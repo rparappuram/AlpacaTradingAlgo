@@ -70,71 +70,6 @@ class SwingStrategy(bt.Strategy):
         # Check for buying opportunities
         self.handle_buy_signals()
 
-    def handle_sell_signals(self):
-        """Handle logic for selling positions."""
-        positions = self.getpositions()
-        for data, pos in positions.items():
-            # Remove stale orders
-            self.orders[data] = [
-                o
-                for o in self.orders[data]
-                if o.status
-                not in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Expired]
-            ]
-            self.trail_orders[data] = [
-                o
-                for o in self.trail_orders[data]
-                if o.status
-                not in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Expired]
-            ]
-
-            if pos.size:  # If there's an open position
-                # Previous candle conditions
-                is_prev_candle_close_above_upper_band = (
-                    data.close[-1] > self.bollinger[data].lines.top[-1]
-                )
-                is_prev_rsi_above_upper_threshold = (
-                    self.rsi[data][-1] > self.params.rsi_upper
-                )
-                # Current candle conditions
-                is_current_rsi_above_upper_threshold = (
-                    self.rsi[data][0] > self.params.rsi_upper
-                )
-                is_current_close_below_prev_low = data.close[0] < data.low[-1]
-                is_bb_width_above_threshold = (
-                    self.bollinger_width[data][0]
-                    > self.params.bollinger_width_threshold
-                )
-
-                if (
-                    is_prev_candle_close_above_upper_band
-                    # and is_prev_rsi_above_upper_threshold
-                    # and is_current_rsi_above_upper_threshold
-                    and is_current_close_below_prev_low
-                    # and is_bb_width_above_threshold
-                ):
-                    # Cancel trailing stop orders
-                    for trail_order in self.trail_orders[data]:
-                        self.cancel(trail_order)
-                    self.trail_orders[data] = []
-
-                    # Cancel any open sell orders
-                    if self.orders[data]:
-                        for order in self.orders[data]:
-                            if order.issell():
-                                self.cancel(order)
-                        self.orders[data] = []
-
-                    # Place a market sell order
-                    order = self.close(data)
-                    self.orders[data].append(order)
-                    reason = (
-                        f"RSI: {self.rsi[data][0]:.2f}"
-                        if self.rsi[data] > self.params.rsi_upper
-                        else f"Bollinger: {self.bollinger[data].lines.top[0]:.2f}"
-                    )
-                    self.order_reasons[order.ref] = reason
-
     def handle_buy_signals(self):
         """Handle logic for buying stocks."""
         # Check for buying opportunities
@@ -160,7 +95,7 @@ class SwingStrategy(bt.Strategy):
                 is_prev_candle_close_below_lower_band
                 # and is_prev_rsi_below_lower_threshold
                 # and is_current_rsi_below_lower_threshold
-                and is_current_close_above_prev_high
+                # and is_current_close_above_prev_high
                 # and is_bb_width_above_threshold
             ):
                 eligible_stocks.append(data)
@@ -206,6 +141,71 @@ class SwingStrategy(bt.Strategy):
                     f"Trailing Stop {trailpercent:.4f}%"
                 )
 
+    def handle_sell_signals(self):
+        """Handle logic for selling positions."""
+        positions = self.getpositions()
+        for data, pos in positions.items():
+            # Remove stale orders
+            self.orders[data] = [
+                o
+                for o in self.orders[data]
+                if o.status
+                not in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Expired]
+            ]
+            self.trail_orders[data] = [
+                o
+                for o in self.trail_orders[data]
+                if o.status
+                not in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Expired]
+            ]
+
+            if pos.size:  # If there's an open position
+                # Previous candle conditions
+                is_prev_candle_close_above_upper_band = (
+                    data.close[-1] > self.bollinger[data].lines.top[-1]
+                )
+                is_prev_rsi_above_upper_threshold = (
+                    self.rsi[data][-1] > self.params.rsi_upper
+                )
+                # Current candle conditions
+                is_current_rsi_above_upper_threshold = (
+                    self.rsi[data][0] > self.params.rsi_upper
+                )
+                is_current_close_below_prev_low = data.close[0] < data.low[-1]
+                is_bb_width_above_threshold = (
+                    self.bollinger_width[data][0]
+                    > self.params.bollinger_width_threshold
+                )
+
+                if (
+                    is_prev_candle_close_above_upper_band
+                    # and is_prev_rsi_above_upper_threshold
+                    # and is_current_rsi_above_upper_threshold
+                    # and is_current_close_below_prev_low
+                    # and is_bb_width_above_threshold
+                ):
+                    # Cancel trailing stop orders
+                    for trail_order in self.trail_orders[data]:
+                        self.cancel(trail_order)
+                    self.trail_orders[data] = []
+
+                    # Cancel any open sell orders
+                    if self.orders[data]:
+                        for order in self.orders[data]:
+                            if order.issell():
+                                self.cancel(order)
+                        self.orders[data] = []
+
+                    # Place a market sell order
+                    order = self.close(data)
+                    self.orders[data].append(order)
+                    reason = (
+                        f"RSI: {self.rsi[data][0]:.2f}"
+                        if self.rsi[data] > self.params.rsi_upper
+                        else f"Bollinger: {self.bollinger[data].lines.top[0]:.2f}"
+                    )
+                    self.order_reasons[order.ref] = reason
+
     def stop(self):
         """Display final results and any open positions."""
         print(f"Final Portfolio Value: ${self.broker.getvalue():.2f}")
@@ -223,8 +223,9 @@ def run():
     Run strategy with parameters from config.py.
     Plots the results.
     """
-    cerebro = bt.Cerebro()
-    # cerebro.addobserver(bt.observers.BuySell)
+    cerebro = bt.Cerebro(
+        oldbuysell=True,
+    )
     data = yf.download(
         TICKERS,
         start=START_DATE,
