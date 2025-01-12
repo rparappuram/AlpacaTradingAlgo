@@ -42,23 +42,23 @@ class SwingStrategy(bt.Strategy):
             for data in self.datas
         }
 
-        # Initialize order tracking
-        self.order_reasons = {}
-        self.orders = {data: [] for data in self.datas}
-        self.trail_orders = {data: [] for data in self.datas}
-
-        # Initialize trade statistics
-        self.positive_trades = 0
-        self.negative_trades = 0
-
     def log(self, txt):
         if not self.params.backtesting:
             print(f"{self.datas[0].datetime.date(0)} - {txt}")
 
     def notify_order(self, order):
         if order.status in [order.Completed]:
-            reason = self.order_reasons.pop(order.ref, "Unknown Reason")
-
+            # Check if order is a buy, if so place trailing stop
+            if order.isbuy():
+                trailpercent = (
+                    self.atr[order.data][0] * self.params.atr_multiplier / 100
+                )
+                trail_order = self.sell(
+                    order.data,
+                    size=order.executed.size,
+                    exectype=bt.Order.StopTrail,
+                    trailpercent=trailpercent,
+                )
             # Check if order is a sell and calculate PnL
             if order.issell():
                 pnl = order.executed.pnl
@@ -72,6 +72,7 @@ class SwingStrategy(bt.Strategy):
             stock_name = order.data._name
             price = f"${order.executed.price:.2f}"
             size = f"{order.executed.size}"
+            reason = order.getordername()
 
             # Log in tabular format
             self.log(f"{action:<8} {stock_name:<10} {price:<12} {size:<8} {reason}")
@@ -132,46 +133,12 @@ class SwingStrategy(bt.Strategy):
             size = int(budget_per_stock / data.close[0])
             if size > 0:
                 # Place buy order
-                order = self.buy(data, size=size)
-                reason = (
-                    f"RSI: {self.rsi[data][0]:.2f}"
-                    if self.rsi[data] < self.params.rsi_lower
-                    else f"Bollinger: {self.bollinger[data].lines.bot[0]:.2f}"
-                )
-                self.order_reasons[order.ref] = reason
-                self.orders[data].append(order)
-
-                # Place sell order with trailing stop
-                trailpercent = self.atr[data][0] * self.params.atr_multiplier
-                trail_order = self.sell(
-                    data,
-                    size=size,
-                    exectype=bt.Order.StopTrail,
-                    trailpercent=trailpercent,
-                )
-                self.trail_orders[data].append(trail_order)
-                self.order_reasons[trail_order.ref] = (
-                    f"Trailing Stop {trailpercent:.4f}%"
-                )
+                self.buy(data, size=size)
 
     def handle_sell_signals(self):
         """Handle logic for selling positions."""
         positions = self.getpositions()
         for data, pos in positions.items():
-            # Remove stale orders
-            self.orders[data] = [
-                o
-                for o in self.orders[data]
-                if o.status
-                not in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Expired]
-            ]
-            self.trail_orders[data] = [
-                o
-                for o in self.trail_orders[data]
-                if o.status
-                not in [bt.Order.Completed, bt.Order.Canceled, bt.Order.Expired]
-            ]
-
             if pos.size:  # If there's an open position
                 # Previous candle conditions
                 is_prev_candle_close_above_upper_band = (
@@ -197,27 +164,14 @@ class SwingStrategy(bt.Strategy):
                     # and is_current_close_below_prev_low
                     # and is_bb_width_above_threshold
                 ):
-                    # Cancel trailing stop orders
-                    for trail_order in self.trail_orders[data]:
-                        self.cancel(trail_order)
-                    self.trail_orders[data] = []
-
-                    # Cancel any open sell orders
-                    if self.orders[data]:
-                        for order in self.orders[data]:
-                            if order.issell():
-                                self.cancel(order)
-                        self.orders[data] = []
+                    # Cancel any other pending orders for this data
+                    all_orders = self.broker.orders
+                    for order in all_orders:
+                        if order.issell() and data == data:
+                            self.cancel(order)
 
                     # Place a market sell order
-                    order = self.close(data)
-                    self.orders[data].append(order)
-                    reason = (
-                        f"RSI: {self.rsi[data][0]:.2f}"
-                        if self.rsi[data] > self.params.rsi_upper
-                        else f"Bollinger: {self.bollinger[data].lines.top[0]:.2f}"
-                    )
-                    self.order_reasons[order.ref] = reason
+                    self.close(data)
 
     def stop(self):
         """Display detailed final results of the strategy."""
@@ -231,6 +185,18 @@ class SwingStrategy(bt.Strategy):
         end_date = self.datas[0].datetime.date(0)
         trading_days = (end_date - start_date).days
         annualized_return = ((1 + total_return / 100) ** (365 / trading_days) - 1) * 100
+
+        # Calculate positive/negative trades
+        positive_trades = negative_trades = 0
+        total_orders = self.broker.orders
+        for order in total_orders:
+            if order.status in [order.Completed]:
+                if order.issell():
+                    pnl = order.executed.pnl
+                    if pnl > 0:
+                        positive_trades += 1
+                    elif pnl < 0:
+                        negative_trades += 1
 
         # Display open positions
         open_positions = [data for data in self.datas if self.getposition(data).size]
@@ -246,8 +212,8 @@ class SwingStrategy(bt.Strategy):
         print(f"Final Portfolio Value:   ${final_value:.2f}")
         print(f"Total Return:            {total_return:.2f}%")
         print(f"Annualized Return:       {annualized_return:.2f}%")
-        print(f"Positive Trades:         {self.positive_trades}")
-        print(f"Negative Trades:         {self.negative_trades}")
+        print(f"Positive Trades:         {positive_trades}")
+        print(f"Negative Trades:         {negative_trades}")
         print(
             f"Trading Period:          {start_date} to {end_date} ({trading_days} days)"
         )
