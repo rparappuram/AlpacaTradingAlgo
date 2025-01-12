@@ -59,13 +59,6 @@ class SwingStrategy(bt.Strategy):
                     exectype=bt.Order.StopTrail,
                     trailpercent=trailpercent,
                 )
-            # Check if order is a sell and calculate PnL
-            if order.issell():
-                pnl = order.executed.pnl
-                if pnl > 0:
-                    self.positive_trades += 1
-                elif pnl < 0:
-                    self.negative_trades += 1
 
             # Create a tabular format for the log
             action = "BOUGHT" if order.isbuy() else "SOLD"
